@@ -1,0 +1,52 @@
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
+use serde::{Deserialize, Serialize};
+
+/// Local key custody representing user's primary signing and commitment keys
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Keyring {
+    pub key_id: String,
+    #[serde(skip_serializing)]
+    secret_bytes: Vec<u8>,
+    pub public_key_hex: String,
+}
+
+impl Keyring {
+    pub fn generate() -> Self {
+        let mut csprng = OsRng;
+        let signing_key = SigningKey::generate(&mut csprng);
+        let verifying_key = signing_key.verifying_key();
+        let pub_hex = hex_encode(verifying_key.as_bytes());
+
+        Self {
+            key_id: format!("did:key:z{}", &pub_hex[..16]),
+            secret_bytes: signing_key.to_bytes().to_vec(),
+            public_key_hex: pub_hex,
+        }
+    }
+
+    pub fn from_secret_bytes(secret: &[u8]) -> Result<Self, String> {
+        if secret.len() != 32 {
+            return Err("Invalid secret key length, expected 32 bytes".to_string());
+        }
+        let mut arr = [0u8; 32];
+        arr.copy_from_slice(secret);
+        let signing_key = SigningKey::from_bytes(&arr);
+        let verifying_key = signing_key.verifying_key();
+        let pub_hex = hex_encode(verifying_key.as_bytes());
+
+        Ok(Self {
+            key_id: format!("did:key:z{}", &pub_hex[..16]),
+            secret_bytes: secret.to_vec(),
+            public_key_hex: pub_hex,
+        })
+    }
+
+    pub fn secret_bytes(&self) -> &[u8] {
+        &self.secret_bytes
+    }
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+}

@@ -1,0 +1,34 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    "id": "@id",
+    "type": "@type",
+    "kryptotome": "https://kryptotome.org/ns/v1#",
+    "KryptotomeEntitlementCredential": {
+      "@id": "kryptotome:KryptotomeEntitlementCredential",
+      "@context": {
+        "holderCommitment": {
+          "@id": "kryptotome:holderCommitment",
+          "@type": "https://www.w3.org/2001/XMLSchema#string"
+        },
+        "entitlements": {
+          "@id": "kryptotome:entitlements",
+          "@container": "@set"
+        },
+        "packageId": {
+          "@id": "kryptotome:packageId",
+          "@type": "https://www.w3.org/2001/XMLSchema#string"
+        },
+        "contentDigest": {
+          "@id": "kryptotome:contentDigest",
+          "@type": "https://www.w3.org/2001/XMLSchema#string"
+        },
+        "scope": {
+          "@id": "kryptotome:scope",
+          "@container": "@set"
+        }
+      }
+    }
+  }
+}

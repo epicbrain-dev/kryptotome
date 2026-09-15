@@ -1,0 +1,18 @@
+{
+  "classes": [
+    {
+      "id": "cleric",
+      "name": "Cleric",
+      "hitDie": "d8",
+      "primaryAbility": "Wisdom",
+      "description": "A priestly champion who wields divine magic in service of a higher power."
+    },
+    {
+      "id": "wizard",
+      "name": "Wizard",
+      "hitDie": "d6",
+      "primaryAbility": "Intelligence",
+      "description": "A scholarly magic-user capable of manipulating the structures of reality."
+    }
+  ]
+}

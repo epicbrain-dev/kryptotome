@@ -1,0 +1,16 @@
+[package]
+name = "kryptotome-vault"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Local keychain and credential vault runtime for Kryptotome."
+
+[dependencies]
+kryptotome-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ed25519-dalek = { workspace = true }
+rand = { workspace = true }
+chrono = { workspace = true }

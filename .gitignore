@@ -1,0 +1,38 @@
+# Kryptotome Protocol Workspace Git Ignore
+
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Node / JS / TS
+node_modules/
+dist/
+build/
+.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# WASM
+pkg/
+*.wasm
+
+# Secrets & Keys (Do not commit real private keys or local vaults)
+*.key
+*.pem
+*.secret
+.vault/
+*.vault.json
+.env
+.env.local
+.env.*.local
+
+# IDE & OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~

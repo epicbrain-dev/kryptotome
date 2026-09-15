@@ -1,0 +1,31 @@
+{
+  "name": "kryptotome-protocol-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vendor-agnostic, privacy-preserving digital entitlement and content synchronization protocol for tabletop gaming",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b packages/sdk packages/bridge packages/vtt-adapter",
+    "build:crates": "source \"$HOME/.cargo/env\" && cargo build --workspace",
+    "build:wasm": "source \"$HOME/.cargo/env\" && wasm-pack build crates/kryptotome-wasm --target web --out-dir ../../packages/sdk/wasm",
+    "test": "node --test",
+    "test:crates": "source \"$HOME/.cargo/env\" && cargo test --workspace",
+    "typecheck": "tsc -b packages/sdk packages/bridge packages/vtt-adapter"
+  },
+  "keywords": [
+    "zero-knowledge-proofs",
+    "local-first",
+    "ttrpg-tools",
+    "verifiable-credentials",
+    "open-gaming",
+    "wasm",
+    "privacy",
+    "cryptography"
+  ],
+  "license": "MIT OR Apache-2.0",
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

@@ -1,0 +1,47 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/kryptotome-core",
+    "crates/kryptotome-vault",
+    "crates/kryptotome-verifier",
+    "crates/kryptotome-wasm",
+    "crates/kryptotome-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Kryptotome Contributors"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/kryptotome/kryptotome-protocol"
+description = "A vendor-agnostic, privacy-preserving digital entitlement and content synchronization protocol for tabletop gaming."
+keywords = ["zero-knowledge-proofs", "local-first", "ttrpg-tools", "verifiable-credentials", "open-gaming"]
+categories = ["cryptography", "wasm", "games"]
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+sha2 = "0.10"
+ed25519-dalek = { version = "2.1", features = ["serde", "rand_core"] }
+rand = "0.8"
+subtle = "2.6"
+tokio = { version = "1.38", features = ["macros", "rt-multi-thread", "fs", "io-util"] }
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+
+# Local workspace members
+kryptotome-core = { path = "crates/kryptotome-core" }
+kryptotome-vault = { path = "crates/kryptotome-vault" }
+kryptotome-verifier = { path = "crates/kryptotome-verifier" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.release-wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+strip = true

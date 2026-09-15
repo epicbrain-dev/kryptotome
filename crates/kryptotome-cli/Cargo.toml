@@ -1,0 +1,23 @@
+[package]
+name = "kryptotome-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Publisher signing toolchain and local vault CLI for Kryptotome protocol."
+
+[[bin]]
+name = "kryptotome"
+path = "src/main.rs"
+
+[dependencies]
+kryptotome-core = { workspace = true }
+kryptotome-vault = { workspace = true }
+kryptotome-verifier = { workspace = true }
+clap = { version = "4.5", features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+ed25519-dalek = { workspace = true }
+rand = { workspace = true }
+chrono = { workspace = true }

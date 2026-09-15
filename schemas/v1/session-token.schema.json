@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kryptotome.org/schemas/v1/session-token.json",
+  "title": "KryptotomeSessionToken",
+  "description": "Ephemeral table-sharing token issued by Game Master or Host for session peers",
+  "type": "object",
+  "required": [
+    "sessionId",
+    "hostPeerId",
+    "recipientPeerId",
+    "packageId",
+    "contentDigest",
+    "issuedAt",
+    "expiresAt",
+    "signature"
+  ],
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "hostPeerId": {
+      "type": "string"
+    },
+    "recipientPeerId": {
+      "type": "string"
+    },
+    "packageId": {
+      "type": "string"
+    },
+    "contentDigest": {
+      "type": "string"
+    },
+    "permittedScopes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "signature": {
+      "type": "string",
+      "description": "Ed25519 signature by the host verifying the host has proven entitlement"
+    }
+  }
+}

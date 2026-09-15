@@ -1,0 +1,23 @@
+[package]
+name = "kryptotome-wasm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "WebAssembly bindings for Kryptotome embedded verification and vault runtime."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+kryptotome-core = { workspace = true }
+kryptotome-verifier = { workspace = true }
+kryptotome-vault = { workspace = true }
+wasm-bindgen = "0.2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+getrandom = { version = "0.2", features = ["js"] }
+console_error_panic_hook = { version = "0.1", optional = true }
+
+[features]
+default = ["console_error_panic_hook"]

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "open-rpg/core-rules-srd51",
+  "title": "Open RPG Core Rules SRD 5.1",
+  "version": "1.0.0",
+  "description": "Standard Reference Document 5.1 sample dataset licensed under Creative Commons",
+  "publisher": {
+    "id": "did:kryptotome:pub:samplepub01",
+    "name": "Open Gaming Foundation",
+    "publicKey": "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5",
+    "mirrorUrls": ["https://cdn.opengaming.example/packages/srd51"]
+  },
+  "license": {
+    "type": "CC-BY-4.0",
+    "url": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "System Reference Document 5.1 Copyright 2023 Wizards of the Coast LLC"
+  },
+  "digestAlgorithm": "SHA-256",
+  "rootDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "files": [
+    {
+      "path": "rules/classes.json",
+      "size": 380,
+      "digest": "sha256:1a2b3c...",
+      "contentType": "application/json"
+    },
+    {
+      "path": "rules/spells.json",
+      "size": 395,
+      "digest": "sha256:4d5e6f...",
+      "contentType": "application/json"
+    }
+  ],
+  "signature": {
+    "algorithm": "Ed25519",
+    "signatureValue": "a1b2c3d4e5f6..."
+  }
+}

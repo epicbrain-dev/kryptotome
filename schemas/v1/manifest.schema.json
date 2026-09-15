@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kryptotome.org/schemas/v1/manifest.json",
+  "title": "KryptotomePackageManifest",
+  "description": "Publisher release manifest describing TTRPG rulebooks, datasets, licensing, and deterministic content digests",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "packageId",
+    "title",
+    "version",
+    "publisher",
+    "license",
+    "digestAlgorithm",
+    "rootDigest",
+    "files"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "packageId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "publisher": {
+      "type": "object",
+      "required": ["id", "name", "publicKey"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "publicKey": { "type": "string" },
+        "mirrorUrls": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" }
+        }
+      }
+    },
+    "license": {
+      "type": "object",
+      "required": ["type", "url"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["ORC-1.0", "CC-BY-4.0", "CC0-1.0", "Custom-Open"]
+        },
+        "url": { "type": "string", "format": "uri" },
+        "attribution": { "type": "string" }
+      }
+    },
+    "digestAlgorithm": {
+      "type": "string",
+      "enum": ["SHA-256", "BLAKE3"]
+    },
+    "rootDigest": {
+      "type": "string"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "size", "digest", "contentType"],
+        "properties": {
+          "path": { "type": "string" },
+          "size": { "type": "integer", "minimum": 0 },
+          "digest": { "type": "string" },
+          "contentType": { "type": "string" }
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "signatureValue"],
+      "properties": {
+        "algorithm": { "type": "string", "const": "Ed25519" },
+        "signatureValue": { "type": "string" }
+      }
+    }
+  }
+}

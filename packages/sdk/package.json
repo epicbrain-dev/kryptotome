@@ -1,0 +1,24 @@
+{
+  "name": "@kryptotome/sdk",
+  "version": "0.1.0",
+  "description": "Client SDK and verification engine for Kryptotome protocol",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "keywords": [
+    "kryptotome",
+    "zero-knowledge",
+    "verifiable-credentials",
+    "ttrpg",
+    "offline-first"
+  ],
+  "license": "MIT OR Apache-2.0"
+}

@@ -1,0 +1,20 @@
+{
+  "spells": [
+    {
+      "id": "cure-wounds",
+      "name": "Cure Wounds",
+      "level": 1,
+      "school": "Evocation",
+      "castingTime": "1 action",
+      "range": "Touch"
+    },
+    {
+      "id": "magic-missile",
+      "name": "Magic Missile",
+      "level": 1,
+      "school": "Evocation",
+      "castingTime": "1 action",
+      "range": "120 feet"
+    }
+  ]
+}
