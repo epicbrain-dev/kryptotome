@@ -189,3 +189,35 @@ This document tracks all modules, features, cryptographic circuits, integrations
 ### 12.3 Cross-Platform & E2E Browser Testing
 - [ ] Headless browser test running `kryptotome-wasm` in Chrome/Firefox/Safari WebAssembly runtimes.
 - [ ] Test offline behavior: Verify that all proof generation, verification, and table sharing operate with network interfaces disabled.
+
+---
+
+## 13. Future Horizons & Expansion Roadmap (Post-v1.0)
+
+*See detailed architectural specifications in [docs/EXPANSION_ROADMAP.md](docs/EXPANSION_ROADMAP.md).*
+
+### 13.1 Ecosystem & Cross-VTT Expansion
+- [ ] **Owlbear Rodeo 2.0 Extension**: Build an official Owlbear extension utilizing native SDK and WebRTC channels to mount unlocked tokens, battlemaps, and spell cards directly into the room canvas.
+- [ ] **Web VTT Browser Extension (Roll20 & Alchemy)**: Develop a lightweight WebExtensions (Manifest V3) plugin that injects unlocked compendium records into web VTT character sheets via local vault proofs.
+- [ ] **Open Character Builder Adapters**: Implement local entitlement plugins for open character builders (e.g. Pathbuilder 2e, Wanderer's Guide) to unlock character feats and classes offline.
+- [ ] **Standalone "Pocket Vault" Mobile App (Tauri / iOS / Android)**: Build a biometric-secured (Secure Enclave / Android Keystore) mobile vault with camera QR scanning and local BLE/mDNS beacons for table sessions.
+
+### 13.2 Advanced Cryptography & Table Privacy
+- [ ] **Attribute-Level Selective Disclosure**: Extend ZK-SNARK circuits with Merkle inclusion proofs to prove ownership of individual spells or monster stat blocks without disclosing the specific book bundle or edition.
+- [ ] **Collective Party Pooling (Multi-Holder Aggregation)**: Allow multiple players at a table to pool distinct owned rulebooks into an aggregated session proof, sharing the combined compendium across the campaign.
+- [ ] **Hardware Key & Passkey Binding (FIDO2 / WebAuthn)**: Enable binding user Pedersen commitments directly to hardware keys (YubiKeys) or OS Passkeys for tamper-proof key custody.
+
+### 13.3 Indie Publisher & Creator Tooling
+- [ ] **Kryptotome Publisher Studio (GUI Desktop App)**: Develop a desktop tool (Tauri + Rust) for indie creators to drag-and-drop rulebook PDFs/markdown, auto-compute BLAKE3 digests, validate schemas, and sign distribution packages.
+- [ ] **Crowdfunding Fulfillment Bridge (Kickstarter & BackerKit)**: Automated connector that issues batch-signed W3C VC credentials or digital activation links directly to campaign backers.
+- [ ] **Print-on-Demand (POD) NFC & Physical Voucher Claims**: Standardize scratch-off cryptographic codes and NFC tags embedded in physical hardcover books to claim digital compendium rights.
+
+### 13.4 Decentralized Distribution & Dependency Graphs
+- [ ] **Peer-to-Peer Compendium Swarms (BitTorrent / Libp2p)**: Distribute multi-gigabyte compendium asset packs (4K maps, audio) over content-addressed P2P swarms, mounted only upon local proof verification.
+- [ ] **Homebrew Dependency & Lineage Graph**: Establish cryptographic dependency declarations for third-party creators (e.g., *"Requires entitlement to Core Rules v1.2+"*), maintaining an open, verifiable attribution tree.
+- [ ] **Universal Cross-VTT Schema Transpiler**: Build an automated conversion pipeline translating standard open gaming schemas (ORC, SRD 5.1 JSON) into Foundry VTT LevelDB packs, Roll20 JSON, or Markdown on-demand.
+
+### 13.5 In-Person & Convention Play
+- [ ] **Air-Gapped Table Beacons (BLE / Offline Wi-Fi)**: Run a lightweight verifier daemon on a Raspberry Pi or GM laptop broadcasting an offline hotspot for instant, zero-Internet table session mounting.
+- [ ] **Organized Play & Tournament Fast Check-In**: Enable convention check-ins (e.g., Pathfinder Society, Adventurers League) to verify character sheet build legality and rulebook ownership in $< 10\text{ms}$ via QR code scan with zero PII shared.
+

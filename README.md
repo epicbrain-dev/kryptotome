@@ -208,6 +208,7 @@ To safeguard community trust and distinguish Kryptotome from speculative technol
 - 📖 **Language**: [Terminology & Community Positioning](docs/TERMINOLOGY.md)
 - 🛡️ **Security**: [Threat Model & Attack Surface](docs/THREAT_MODEL.md)
 - ✅ **Roadmap**: [Implementation & Verification Checklist](CHECKLIST.md)
+- 🚀 **Expansion**: [Future Horizons & Post-v1.0 Roadmap](docs/EXPANSION_ROADMAP.md)
 
 ---
 
