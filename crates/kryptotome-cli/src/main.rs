@@ -34,12 +34,18 @@ enum Commands {
 
         #[arg(short, long)]
         output: PathBuf,
+
+        #[arg(short = 'a', long, default_value = "sha-256")]
+        algorithm: String,
     },
 
     /// Compute deterministic directory digest
     Digest {
         #[arg(short, long)]
         dir: PathBuf,
+
+        #[arg(short = 'a', long, default_value = "sha-256")]
+        algorithm: String,
     },
 
     /// Generate new publisher or vault keypair
@@ -64,8 +70,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             publisher_name,
             dir,
             output,
+            algorithm,
         } => {
-            println!("Signing package '{}' ({}) from {:?}", title, package_id, dir);
+            let digest_algo: kryptotome_core::DigestAlgorithm = algorithm.parse()?;
+            println!("Signing package '{}' ({}) from {:?} using {}", title, package_id, dir, digest_algo);
             let mut csprng = OsRng;
             let signing_key = SigningKey::generate(&mut csprng);
             let toolchain = publisher::PublisherToolchain::new(signing_key);
@@ -76,18 +84,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &version,
                 &publisher_name,
                 &dir,
+                digest_algo,
             )?;
 
             let json = serde_json::to_string_pretty(&manifest)?;
             std::fs::write(&output, json)?;
             println!("Manifest successfully written to {:?}", output);
+            println!("Algorithm: {}", manifest.digest_algorithm);
             println!("Root content digest: {}", manifest.root_digest);
+            println!("Indexed files: {}", manifest.files.len());
         }
 
-        Commands::Digest { dir } => {
-            let digest = kryptotome_core::digest::compute_directory_digest(&dir)?;
+        Commands::Digest { dir, algorithm } => {
+            let digest_algo: kryptotome_core::DigestAlgorithm = algorithm.parse()?;
+            let digest = kryptotome_core::compute_directory_digest_with_algorithm(&dir, digest_algo)?;
             println!("Directory: {:?}", dir);
-            println!("SHA-256 Digest: {}", digest);
+            println!("Algorithm: {}", digest_algo);
+            println!("Digest: {}", digest);
         }
 
         Commands::Keygen => {

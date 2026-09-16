@@ -19,10 +19,10 @@ This document tracks all modules, features, cryptographic circuits, integrations
 
 ### 2.1 Cryptographic Primitives
 - [x] SHA-256 deterministic file and directory content digests.
-- [ ] Implement BLAKE3 content digesting option for large compendium asset libraries.
+- [x] Implement BLAKE3 content digesting option for large compendium asset libraries.
 - [x] Ed25519 digital signature signing and verification models.
-- [ ] Select pairing-friendly elliptic curve suite (e.g. BLS12-381 / BN254 via `arkworks-rs`).
-- [ ] Implement cryptographic commitment scheme (Pedersen or Poseidon) for binding holder secret key to credentials.
+- [x] Select pairing-friendly elliptic curve suite (**BLS12-381** via `arkworks-rs` with ~128-bit security and ~1.3ms pairing latency).
+- [x] Implement cryptographic commitment scheme (Pedersen on BLS12-381 G1) for binding holder secret key to credentials.
 
 ### 2.2 Zero-Knowledge Proof Circuit
 - [ ] Define R1CS / Plonk constraint circuit in `arkworks-rs`:

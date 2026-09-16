@@ -1,3 +1,5 @@
+export type DigestAlgorithm = 'SHA-256' | 'BLAKE3';
+
 export interface Entitlement {
   packageId: string;
   contentDigest: string;

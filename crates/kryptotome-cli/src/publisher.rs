@@ -1,5 +1,5 @@
 use ed25519_dalek::{Signer, SigningKey};
-use kryptotome_core::{digest::compute_directory_digest, error::Result};
+use kryptotome_core::error::Result;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -69,9 +69,17 @@ impl PublisherToolchain {
         version: &str,
         publisher_name: &str,
         source_dir: P,
+        algorithm: kryptotome_core::DigestAlgorithm,
     ) -> Result<PackageManifest> {
-        let root_digest = compute_directory_digest(&source_dir)?;
+        let root_digest = kryptotome_core::compute_directory_digest_with_algorithm(&source_dir, algorithm)?;
         let pubkey_hex = hex_encode(self.signing_key.verifying_key().as_bytes());
+
+        // Collect individual files for manifest
+        let mut files = Vec::new();
+        if source_dir.as_ref().is_dir() {
+            Self::collect_files_recursive(source_dir.as_ref(), source_dir.as_ref(), algorithm, &mut files)?;
+        }
+        files.sort_by(|a, b| a.path.cmp(&b.path));
 
         let mut manifest = PackageManifest {
             schema_version: "1.0.0".to_string(),
@@ -90,9 +98,9 @@ impl PublisherToolchain {
                 url: "https://paizo.com/orclicense".to_string(),
                 attribution: format!("Published by {}", publisher_name),
             },
-            digest_algorithm: "SHA-256".to_string(),
+            digest_algorithm: algorithm.as_str().to_string(),
             root_digest: root_digest.clone(),
-            files: vec![],
+            files,
             signature: None,
         };
 
@@ -106,6 +114,44 @@ impl PublisherToolchain {
         });
 
         Ok(manifest)
+    }
+
+    fn collect_files_recursive(
+        current_dir: &Path,
+        base_dir: &Path,
+        algorithm: kryptotome_core::DigestAlgorithm,
+        entries: &mut Vec<ManifestFileEntry>,
+    ) -> Result<()> {
+        for entry in std::fs::read_dir(current_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() {
+                let rel_path = path
+                    .strip_prefix(base_dir)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+                    .to_string_lossy()
+                    .to_string();
+                let digest = kryptotome_core::compute_file_digest_with_algorithm(&path, algorithm)?;
+                let metadata = std::fs::metadata(&path)?;
+                let content_type = if rel_path.ends_with(".json") {
+                    "application/json".to_string()
+                } else if rel_path.ends_with(".png") || rel_path.ends_with(".webp") {
+                    "image/webp".to_string()
+                } else {
+                    "application/octet-stream".to_string()
+                };
+
+                entries.push(ManifestFileEntry {
+                    path: rel_path,
+                    size: metadata.len(),
+                    digest,
+                    content_type,
+                });
+            } else if path.is_dir() {
+                Self::collect_files_recursive(&path, base_dir, algorithm, entries)?;
+            }
+        }
+        Ok(())
     }
 }
 

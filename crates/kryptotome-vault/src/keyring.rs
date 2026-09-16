@@ -45,6 +45,34 @@ impl Keyring {
     pub fn secret_bytes(&self) -> &[u8] {
         &self.secret_bytes
     }
+
+    /// Derives a cryptographically binding Pedersen commitment to the user's secret key
+    /// along with the secret scalar and blinding randomness.
+    pub fn derive_holder_commitment(
+        &self,
+    ) -> (
+        kryptotome_core::PedersenCommitment,
+        kryptotome_core::ScalarField,
+        kryptotome_core::ScalarField,
+    ) {
+        let scheme = kryptotome_core::PedersenCommitmentScheme::new();
+        scheme.commit_secret_bytes(&self.secret_bytes)
+    }
+
+    /// Derives canonical URN representation of the holder commitment for W3C credentials
+    pub fn derive_commitment_urn(
+        &self,
+    ) -> (
+        String,
+        kryptotome_core::ScalarField,
+        kryptotome_core::ScalarField,
+    ) {
+        let (commitment, secret, blinding) = self.derive_holder_commitment();
+        let urn = commitment
+            .to_urn()
+            .unwrap_or_else(|_| "urn:kryptotome:commitment:bls12381:unknown".to_string());
+        (urn, secret, blinding)
+    }
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
