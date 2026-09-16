@@ -9,9 +9,6 @@
 [![Local First](https://img.shields.io/badge/Architecture-Local--First-green.svg)](#core-principles)
 [![W3C VC v2.0](https://img.shields.io/badge/Standards-W3C%20VC%20v2.0-orange.svg)](#standards-compliance)
 
-**GitHub Topic Tags:**  
-`zero-knowledge-proofs`, `local-first`, `ttrpg-tools`, `verifiable-credentials`, `open-gaming`, `wasm`, `privacy`, `cryptography`
-
 </div>
 
 ---
