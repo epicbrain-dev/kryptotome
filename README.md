@@ -1,12 +1,18 @@
+<div align="center">
+
+<img src="docs/assets/kryptotome_table_sharing.jpg" alt="Kryptotome Protocol - Table Session Sharing" width="100%"/>
+
 # Kryptotome Protocol (`kryptotome-protocol`)
 
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Zero Knowledge](https://img.shields.io/badge/Cryptography-Zero--Knowledge%20Proofs-purple.svg)](#cryptographic-architecture)
 [![Local First](https://img.shields.io/badge/Architecture-Local--First-green.svg)](#core-principles)
 [![W3C VC v2.0](https://img.shields.io/badge/Standards-W3C%20VC%20v2.0-orange.svg)](#standards-compliance)
 
 **GitHub Topic Tags:**  
 `zero-knowledge-proofs`, `local-first`, `ttrpg-tools`, `verifiable-credentials`, `open-gaming`, `wasm`, `privacy`, `cryptography`
+
+</div>
 
 ---
 
