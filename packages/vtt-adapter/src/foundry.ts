@@ -1,5 +1,11 @@
-import { EmbeddedVerifier, PeerSessionClient, TableSessionManager } from '@kryptotome/sdk';
+import {
+  EmbeddedVerifier,
+  KryptotomeError,
+  PeerSessionClient,
+  TableSessionManager,
+} from '@kryptotome/sdk';
 import type {
+  ChallengeNonce,
   MountedCompendiumSession,
   PeerAccessRequest,
   PeerAccessResponse,
@@ -8,6 +14,15 @@ import type {
   SessionRevocationNotice,
   ZkProof,
 } from '@kryptotome/sdk';
+import { VttSocketDispatcher, type VttSocketTransport } from './socket.js';
+import {
+  renderCompendiumLockOverlay,
+  renderTableSharingStatusBadge,
+  renderUnlockAnimationCss,
+  renderUnlockModalHtml,
+  type TableSharingBadgeState,
+  type UnlockModalOptions,
+} from './ui.js';
 
 export interface VttAdapterConfig {
   gameSystemId: string;
@@ -16,11 +31,30 @@ export interface VttAdapterConfig {
   localPeerId: string;
 }
 
+export interface CompendiumCollectionLike {
+  metadata: { id: string; package: string; label: string; [key: string]: unknown };
+  load(): Promise<any>;
+  getData(options?: any): Promise<any>;
+  [key: string]: any;
+}
+
+export interface CompendiumHookOptions {
+  onRequestProof?: (
+    packageId: string,
+    challengeNonce: string
+  ) => Promise<ZkProof | null>;
+  onUnlocked?: (packageId: string) => void;
+  publisherPublicKeyHex?: string;
+  expectedDigest?: string;
+}
+
 export class FoundryVttAdapter {
   private verifier: EmbeddedVerifier;
   private sessionManager: TableSessionManager | null = null;
   private peerClient: PeerSessionClient;
   private config: VttAdapterConfig;
+  private socketDispatcher: VttSocketDispatcher | null = null;
+  private hookedCompendiums: Map<string, CompendiumCollectionLike> = new Map();
 
   constructor(config: VttAdapterConfig) {
     this.config = config;
@@ -28,17 +62,56 @@ export class FoundryVttAdapter {
     this.peerClient = new PeerSessionClient(config.localPeerId);
   }
 
+  public getVerifier(): EmbeddedVerifier {
+    return this.verifier;
+  }
+
+  public getSessionManager(): TableSessionManager | null {
+    return this.sessionManager;
+  }
+
+  public getPeerClient(): PeerSessionClient {
+    return this.peerClient;
+  }
+
+  public getConfig(): VttAdapterConfig {
+    return { ...this.config };
+  }
+
   /**
-   * GM unlocks compendium module locally by validating ZK proof
+   * Initializes seamless WebRTC / SocketLib dispatch for table sessions.
+   */
+  public enableSocketLib(socket: VttSocketTransport): VttSocketDispatcher {
+    this.socketDispatcher = new VttSocketDispatcher(this, socket, this.config.isGameMaster);
+    return this.socketDispatcher;
+  }
+
+  public getSocketDispatcher(): VttSocketDispatcher | null {
+    return this.socketDispatcher;
+  }
+
+  /**
+   * GM unlocks compendium module locally by validating ZK proof.
    */
   public async unlockCompendiumModule(
     packageId: string,
     publisherPublicKeyHex: string,
     proof: ZkProof,
-    expectedDigest?: string
+    expectedDigest?: string,
+    challenge?: ChallengeNonce
   ): Promise<boolean> {
-    const challenge = this.verifier.createChallenge(packageId);
-    const verified = await this.verifier.verifyZkProof(challenge, proof, {
+    const targetChallenge =
+      challenge ||
+      (proof.publicInputs?.challengeNonce
+        ? {
+            nonce: proof.publicInputs.challengeNonce,
+            packageId,
+            timestamp: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 60000).toISOString(),
+          }
+        : this.verifier.createChallenge(packageId));
+
+    const verified = await this.verifier.verifyZkProof(targetChallenge, proof, {
       publisherPublicKeyHex,
       expectedDigest,
     });
@@ -57,11 +130,97 @@ export class FoundryVttAdapter {
   }
 
   /**
+   * Intercepts Foundry VTT `CompendiumCollection.load()` and `getData()` calls.
+   * Checks if module is unlocked; if locked, triggers challenge prompt before loading plaintext rule assets.
+   */
+  public hookCompendiumCollection(
+    compendium: CompendiumCollectionLike,
+    packageId: string,
+    options?: CompendiumHookOptions
+  ): CompendiumCollectionLike {
+    const originalLoad = compendium.load;
+    const originalGetData = compendium.getData;
+    const self = this;
+
+    compendium.load = async function () {
+      if (!self.isPackageUnlocked(packageId)) {
+        await self.promptAndUnlock(packageId, options);
+      }
+      return originalLoad.call(this);
+    };
+
+    compendium.getData = async function (opts?: any) {
+      if (!self.isPackageUnlocked(packageId)) {
+        await self.promptAndUnlock(packageId, options);
+      }
+      return originalGetData.call(this, opts);
+    };
+
+    this.hookedCompendiums.set(packageId, compendium);
+    return compendium;
+  }
+
+  /**
+   * Prompts user for local credential proof and unlocks the compendium pack.
+   */
+  public async promptAndUnlock(
+    packageId: string,
+    options?: CompendiumHookOptions
+  ): Promise<boolean> {
+    const challenge = this.verifier.createChallenge(packageId);
+
+    if (options?.onRequestProof) {
+      const proof = await options.onRequestProof(packageId, challenge.nonce);
+      if (!proof) {
+        throw new KryptotomeError(
+          'KRYP-603',
+          `Package '${packageId}' is locked: credential proof presentation was cancelled or not provided`
+        );
+      }
+
+      const verified = await this.unlockCompendiumModule(
+        packageId,
+        options.publisherPublicKeyHex || 'd4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5',
+        proof,
+        options.expectedDigest,
+        challenge
+      );
+
+      if (!verified) {
+        throw new KryptotomeError(
+          'KRYP-301',
+          `ZK proof verification failed for package '${packageId}'`
+        );
+      }
+
+      if (options.onUnlocked) {
+        options.onUnlocked(packageId);
+      }
+      return true;
+    }
+
+    throw new KryptotomeError(
+      'KRYP-603',
+      `Compendium package '${packageId}' is locked: no proof resolver registered`
+    );
+  }
+
+  /**
+   * Checks if a package is unlocked locally by verifier (GM) or mounted via peer session (Player).
+   */
+  public isPackageUnlocked(packageId: string): boolean {
+    return (
+      this.verifier.isPackageUnlocked(packageId) ||
+      this.peerClient.isPackageMounted(packageId)
+    );
+  }
+
+  /**
    * For GM: Authorize a player connected to the game table
    */
   public authorizePlayerPeer(peerId: string): SessionAttestation {
     if (!this.sessionManager) {
-      throw new Error('No active table session initialized');
+      throw new KryptotomeError('KRYP-704', 'No active table session initialized');
     }
     return this.sessionManager.issuePeerToken(peerId);
   }
@@ -74,7 +233,7 @@ export class FoundryVttAdapter {
     customScopes?: string[]
   ): PeerAccessResponse {
     if (!this.sessionManager) {
-      throw new Error('No active table session initialized on host');
+      throw new KryptotomeError('KRYP-704', 'No active table session initialized on host');
     }
     return this.sessionManager.handleAccessRequest(request, true, customScopes);
   }
@@ -88,9 +247,20 @@ export class FoundryVttAdapter {
     reason: string = 'Player removed from table session'
   ): SessionRevocationNotice {
     if (!this.sessionManager) {
-      throw new Error('No active table session initialized on host');
+      throw new KryptotomeError('KRYP-704', 'No active table session initialized on host');
     }
-    return this.sessionManager.revokePeer(peerId, packageId, reason);
+    const notice = this.sessionManager.revokePeer(peerId, packageId, reason);
+
+    // If socket dispatcher is active, broadcast revocation notice to peers
+    if (this.socketDispatcher) {
+      try {
+        this.socketDispatcher.broadcastRevocationNotice(notice);
+      } catch {
+        // Broadcast best-effort
+      }
+    }
+
+    return notice;
   }
 
   /**
@@ -101,7 +271,7 @@ export class FoundryVttAdapter {
     durationMinutes?: number
   ): PeerAccessResponse {
     if (!this.sessionManager) {
-      throw new Error('No active table session initialized on host');
+      throw new KryptotomeError('KRYP-704', 'No active table session initialized on host');
     }
     return this.sessionManager.handleRenewalRequest(request, durationMinutes);
   }
@@ -172,13 +342,33 @@ export class FoundryVttAdapter {
   }
 
   /**
-   * For Player: Mount compendium mechanics using GM's ephemeral session token (legacy helper)
+   * UI Reference Renderers
    */
-  public mountSessionToken(token: SessionAttestation): boolean {
-    if (new Date(token.expiresAt) < new Date()) {
-      throw new Error('Received table session token has expired');
-    }
-    // Mount plaintext compendium rules into client runtime
-    return true;
+  public renderUnlockModal(
+    packageId: string,
+    challengeNonce: string,
+    options?: UnlockModalOptions
+  ): string {
+    return renderUnlockModalHtml(packageId, challengeNonce, options);
+  }
+
+  public renderTableSharingStatus(packageId?: string): string {
+    const peerCount = this.sessionManager ? 1 : 0;
+    const state: TableSharingBadgeState = {
+      isGameMaster: this.config.isGameMaster,
+      sessionId: this.config.activeSessionId,
+      connectedPeerCount: peerCount,
+      packageId,
+      allowedScopes: ['spells', 'classes', 'rules', 'compendium'],
+    };
+    return renderTableSharingStatusBadge(state);
+  }
+
+  public renderLockOverlay(packageId: string, title?: string): string {
+    return renderCompendiumLockOverlay(packageId, title);
+  }
+
+  public renderStyles(): string {
+    return renderUnlockAnimationCss();
   }
 }

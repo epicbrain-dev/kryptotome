@@ -17,3 +17,8 @@ chrono = { workspace = true }
 
 [dev-dependencies]
 kryptotome-vault = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "verifier_benchmarks"
+harness = false

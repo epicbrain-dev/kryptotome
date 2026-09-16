@@ -124,5 +124,43 @@ export interface ScopePolicyConfig {
   peerOverrides?: Record<string, string[]>;
 }
 
+export type JsonPatchOpType = 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test';
 
+export interface JsonPatchOperation {
+  op: JsonPatchOpType;
+  path: string;
+  value?: unknown;
+  from?: string;
+}
 
+export interface ErrataPatchBundle {
+  packageId: string;
+  fromDigest: string;
+  toDigest: string;
+  patchVersion: string;
+  publishedAt: string;
+  publisherId: string;
+  publisherSignatureHex: string;
+  operations: JsonPatchOperation[];
+  targetFiles?: Record<string, JsonPatchOperation[]>;
+}
+
+export interface CompendiumPackageData {
+  packageId: string;
+  version: string;
+  contentDigest: string;
+  items: Array<Record<string, unknown>>;
+  schemas?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ErrataApplyResult {
+  packageId: string;
+  previousDigest: string;
+  newDigest: string;
+  appliedPatchVersion: string;
+  appliedAt: string;
+  appliedOperationsCount: number;
+  preservedHomebrewCount: number;
+  compendium: CompendiumPackageData;
+}

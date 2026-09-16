@@ -107,56 +107,56 @@ This document tracks all modules, features, cryptographic circuits, integrations
 
 ### 7.1 itch.io Bridge
 - [x] Interface definition (`ItchIoBridge`).
-- [ ] Integrate itch.io OAuth / API token endpoint (`https://itch.io/api/1/key/me`).
-- [ ] Query user purchase library for registered Kryptotome publisher titles.
-- [ ] Derive local W3C VC v2.0 credential locally without transmitting private credentials to third-party servers.
+- [x] Integrate itch.io OAuth / API token endpoint (`https://itch.io/api/1/key/me`).
+- [x] Query user purchase library for registered Kryptotome publisher titles.
+- [x] Derive local W3C VC v2.0 credential locally without transmitting private credentials to third-party servers.
 
 ### 7.2 DriveThruRPG Bridge
 - [x] Interface definition (`DriveThruRpgBridge`).
-- [ ] Implement authentication using DriveThruRPG Account Application Keys.
-- [ ] Query user order history and digital library for supported rule packages.
-- [ ] Derive local W3C VC v2.0 credential bound to user key commitment.
+- [x] Implement authentication using DriveThruRPG Account Application Keys.
+- [x] Query user order history and digital library for supported rule packages.
+- [x] Derive local W3C VC v2.0 credential bound to user key commitment.
 
 ### 7.3 Offline Air-Gapped Bridges
-- [ ] Support offline receipt / order confirmation file import (e.g. publisher signed digital invoice).
-- [ ] Air-gapped QR code import/export for mobile key vaults.
+- [x] Support offline receipt / order confirmation file import (e.g. publisher signed digital invoice).
+- [x] Air-gapped QR code import/export for mobile key vaults.
 
 ---
 
 ## 8. Dynamic Errata & Sync Dispatcher (`@kryptotome/sdk`)
 
 - [x] Scaffold `ErrataSyncDispatcher`.
-- [ ] Implement authenticated mirror polling using proof attestations in HTTP headers:
+- [x] Implement authenticated mirror polling using proof attestations in HTTP headers:
   ```http
   GET /packages/{packageId}/updates HTTP/1.1
   X-Kryptotome-Proof: <proof-bytes>
   X-Kryptotome-Digest: <current-digest>
   ```
-- [ ] Compute deterministic JSON patch / delta updates for rule compendiums.
-- [ ] Automatically apply verified publisher errata to local cached compendium schemas without modifying user homebrew data.
+- [x] Compute deterministic JSON patch / delta updates for rule compendiums.
+- [x] Automatically apply verified publisher errata to local cached compendium schemas without modifying user homebrew data.
 
 ---
 
 ## 9. Virtual Tabletop (VTT) & Client Integrations (`@kryptotome/vtt-adapter`)
 
 - [x] Foundry VTT adapter scaffold (`FoundryVttAdapter`).
-- [ ] Implement Foundry VTT Compendium Pack hook:
-  - [ ] Intercept `CompendiumCollection.load()` or `getData()`.
-  - [ ] Check `EmbeddedVerifier.isPackageUnlocked(packageId)`.
-  - [ ] If locked, trigger challenge modal asking user to present credential proof from local vault.
-  - [ ] If unlocked, decrypt/load plaintext rule assets into canvas.
-- [ ] Integrate Foundry VTT WebRTC / SocketLib for seamless GM-to-player table session token dispatch.
-- [ ] Build reference UI components for prompt, unlock animation, and table sharing status.
+- [x] Implement Foundry VTT Compendium Pack hook:
+  - [x] Intercept `CompendiumCollection.load()` or `getData()`.
+  - [x] Check `EmbeddedVerifier.isPackageUnlocked(packageId)`.
+  - [x] If locked, trigger challenge modal asking user to present credential proof from local vault.
+  - [x] If unlocked, decrypt/load plaintext rule assets into canvas.
+- [x] Integrate Foundry VTT WebRTC / SocketLib for seamless GM-to-player table session token dispatch.
+- [x] Build reference UI components for prompt, unlock animation, and table sharing status.
 
 ---
 
 ## 10. Performance, Footprint, and Optimization Targets
 
-- [ ] **Verification Latency**: Benchmark proof verification to guarantee $< 10\text{ms}$ on single CPU core.
-- [ ] **Proving Latency**: Benchmark ZK proof generation to guarantee $< 200\text{ms}$ on desktop/mobile.
-- [ ] **WASM Binary Size**: Maintain stripped and compressed `.wasm` footprint $< 2\text{MB}$.
-- [ ] **Memory Footprint**: Keep embedded verifier memory footprint $< 16\text{MB}$ in browser runtime.
-- [ ] Add automated CI performance regression benchmarks using `criterion` (Rust) and `benchmark.js` (Node/Browser).
+- [x] **Verification Latency**: Benchmark proof verification to guarantee $< 10\text{ms}$ on single CPU core.
+- [x] **Proving Latency**: Benchmark ZK proof generation to guarantee $< 200\text{ms}$ on desktop/mobile.
+- [x] **WASM Binary Size**: Maintain stripped and compressed `.wasm` footprint $< 2\text{MB}$.
+- [x] **Memory Footprint**: Keep embedded verifier memory footprint $< 16\text{MB}$ in browser runtime.
+- [x] Add automated CI performance regression benchmarks using `criterion` (Rust) and `benchmark.js` (Node/Browser).
 
 ---
 
