@@ -23,3 +23,12 @@
 ### Adversary C: Counterfeit Content Publisher
 - **Capabilities**: Attempts to spoof publisher identity or distribute corrupted rule data.
 - **Defense**: Root manifests require Ed25519 signatures from published publisher verification keys; file schemas are validated against deterministic merkle/digest trees.
+
+### Adversary D: Rogue Errata Mirror or Man-in-the-Middle
+- **Capabilities**: Intercepts errata synchronization queries and returns malicious RFC 6902 delta patches or attempts to strip user homebrew content.
+- **Defense**: Errata bundles require cryptographic binding to the target package ID, version increment validation, and pre/post-patch package digest matching. The sync dispatcher isolates user homebrew items and custom schema attributes, preventing official patches from deleting user data.
+
+### Adversary E: Tampered Physical Invoice / Air-Gapped QR Attacker
+- **Capabilities**: Crafts fake physical convention receipts or injects corrupted frames into multi-frame animated QR streams.
+- **Defense**: Invoices must be signed by the publisher's registered Ed25519 public key. QR frames carry sequential frame index headers, total frame counts, payload lengths, and checksums. Any tampered, expired, or corrupted frames are rejected (`KRYP-201`, `KRYP-104`).
+

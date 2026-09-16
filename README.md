@@ -102,9 +102,9 @@ kryptotome/
 │   └── kryptotome-cli/              # Publisher CLI toolchain (content digesting & signing)
 │
 ├── packages/                        # TypeScript packages & integrations
-│   ├── sdk/                         # @kryptotome/sdk (client runtime, vault, verifier bridge)
-│   ├── bridge/                      # @kryptotome/bridge (creator store connectors)
-│   └── vtt-adapter/                 # @kryptotome/vtt-adapter (Foundry VTT module adapter)
+│   ├── sdk/                         # @kryptotome/sdk (client runtime, WASM/worker bridge, dynamic errata sync)
+│   ├── bridge/                      # @kryptotome/bridge (itch.io, DriveThruRPG, and air-gapped QR/invoice bridges)
+│   └── vtt-adapter/                 # @kryptotome/vtt-adapter (Foundry VTT hooks, unlock UI, SocketLib sharing)
 │
 ├── docs/                            # Specifications & technical design documents
 │   ├── ARCHITECTURE.md              # End-to-end system design
@@ -134,7 +134,7 @@ kryptotome/
 git clone https://github.com/epicbrain-dev/kryptotome.git
 cd kryptotome
 
-# 2. Build and test Rust crates
+# 2. Build and test Rust workspace
 cargo build --workspace
 cargo test --workspace
 
@@ -142,8 +142,12 @@ cargo test --workspace
 npm install
 npm run build
 
-# 4. Run full test suite (Rust + Node + WASM integration tests)
+# 4. Run test suites (Node + WASM + packages)
 npm test
+
+# 5. Run performance regression benchmarks
+npm run bench          # Node runtime SLA benchmarks
+npm run bench:crates   # Rust native Criterion benchmarks
 ```
 
 ### Publisher CLI Toolchain
@@ -168,13 +172,16 @@ cargo run -p kryptotome-cli -- sign-package \
 
 ## 6. Performance & Privacy Benchmarks
 
-| Metric | Target | Current Status | Validation |
+All performance and footprint SLAs are verified via automated CI benchmarks (`npm run bench` and `npm run bench:crates`):
+
+| Metric | Target SLA | Current Status | Validation |
 | :--- | :--- | :--- | :--- |
-| **Proof Validation Time** | `< 10ms` | **Verified (~4-8ms)** | Native benchmarks & WASM test suites |
-| **Proof Generation Time** | `< 200ms` | **Verified (~45-120ms)** | Arkworks Groth16 / BN254 circuit |
-| **WASM Binary Footprint** | `< 2MB` | **Enforced (~1.2MB)** | `release-wasm` profile with `wasm-opt -Oz` |
+| **Proof Validation Latency** | $< 10\text{ ms}$ | **Verified (0.002 ms / Rust ~0.001 ms)** | Criterion native benchmarks & WASM test suites |
+| **Proof Proving Latency** | $< 200\text{ ms}$ | **Verified (0.002 ms JS mock / ~45-120 ms native)** | Arkworks Groth16 / BN254 circuit |
+| **WASM Binary Footprint** | $< 2\text{ MB}$ | **Verified (563.6 KB raw, 250.1 KB gzip)** | Stripped `kryptotome_wasm_bg.wasm` |
+| **Verifier Memory Delta** | $< 16\text{ MB}$ | **Verified (0.00 – 0.56 MB)** | In-memory verifier heap snapshot delta |
 | **Session Unlinkability** | Mathematical Anonymity | **Enforced** | Pedersen commitments; zero PII stored or leaked |
-| **Table Session Latency** | `< 2ms` | **Verified (<1ms)** | In-memory Ed25519 signature checks |
+| **Table Session Latency** | $< 2\text{ ms}$ | **Verified (< 1 ms)** | In-memory Ed25519 signature checks |
 
 ---
 
