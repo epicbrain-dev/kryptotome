@@ -61,3 +61,16 @@ export interface SessionAttestation {
   expiresAt: string;
   signatureHex: string;
 }
+
+export interface EntitlementProofBundle {
+  version: number;
+  curve: string;
+  proofSystem: string;
+  proofBase64: string;
+  publicInputsBase64: string;
+  packageId: string;
+  contentDigest: string;
+  challengeNonce: string;
+  holderCommitmentUrn: string;
+}
+

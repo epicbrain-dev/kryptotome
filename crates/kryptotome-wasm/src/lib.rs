@@ -47,10 +47,64 @@ impl WasmVerifier {
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
+    /// Verifies a self-contained EntitlementProofBundle JSON string against a challenge JSON string
+    #[wasm_bindgen(js_name = verifyProofBundle)]
+    pub fn verify_proof_bundle(
+        &mut self,
+        bundle_json: &str,
+        challenge_json: &str,
+    ) -> Result<bool, JsValue> {
+        let challenge: ChallengeNonce = serde_json::from_str(challenge_json)
+            .map_err(|e| JsValue::from_str(&format!("Invalid challenge JSON: {}", e)))?;
+
+        let bundle: kryptotome_core::EntitlementProofBundle = serde_json::from_str(bundle_json)
+            .map_err(|e| JsValue::from_str(&format!("Invalid proof bundle JSON: {}", e)))?;
+
+        self.inner
+            .verify_proof_bundle(&bundle, &challenge)
+            .map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
     /// Checks if a package is currently unlocked in the local session cache
     #[wasm_bindgen(js_name = isPackageUnlocked)]
     pub fn is_package_unlocked(&self, package_id: &str) -> bool {
         self.inner.is_package_unlocked(package_id)
+    }
+
+    /// Invalidates entitlement for a specific package
+    #[wasm_bindgen(js_name = invalidatePackage)]
+    pub fn invalidate_package(&mut self, package_id: &str) -> bool {
+        self.inner.invalidate_package(package_id)
+    }
+
+    /// Invalidates entitlement when package assets are reloaded
+    #[wasm_bindgen(js_name = reloadPackage)]
+    pub fn reload_package(&mut self, package_id: &str) -> bool {
+        self.inner.reload_package(package_id)
+    }
+
+    /// Invalidates entitlement if the current content digest has changed
+    #[wasm_bindgen(js_name = invalidateIfDigestMismatch)]
+    pub fn invalidate_if_digest_mismatch(&mut self, package_id: &str, current_digest: &str) -> bool {
+        self.inner.invalidate_if_digest_mismatch(package_id, current_digest)
+    }
+
+    /// Exits the current active game session and purges all unlocked compendiums
+    #[wasm_bindgen(js_name = exitSession)]
+    pub fn exit_session(&mut self) -> usize {
+        self.inner.exit_session()
+    }
+
+    /// Prunes expired entitlements from the cache
+    #[wasm_bindgen(js_name = pruneExpired)]
+    pub fn prune_expired(&mut self) -> usize {
+        self.inner.prune_expired()
+    }
+
+    /// Configures the default cache TTL duration in seconds
+    #[wasm_bindgen(js_name = setCacheTtlSeconds)]
+    pub fn set_cache_ttl_seconds(&mut self, seconds: i64) {
+        self.inner.set_cache_ttl_seconds(seconds);
     }
 }
 

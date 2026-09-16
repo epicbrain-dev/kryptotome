@@ -28,7 +28,7 @@ ed25519-dalek = { version = "2.1", features = ["serde", "rand_core"] }
 rand = "0.8"
 subtle = "2.6"
 tokio = { version = "1.38", features = ["macros", "rt-multi-thread", "fs", "io-util"] }
-chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock", "wasmbind"] }
 base64 = "0.22"
 zeroize = { version = "1.8", features = ["derive"] }
 argon2 = { version = "0.5", features = ["std", "zeroize"] }

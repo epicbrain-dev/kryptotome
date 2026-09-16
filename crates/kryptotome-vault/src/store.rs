@@ -440,6 +440,7 @@ impl VaultStore {
             package_id: challenge.package_id.clone(),
             content_digest: entitlement.content_digest.clone(),
             publisher_pubkey_hash: cred.issuer.public_key.clone(),
+            holder_commitment: Some(cred.credential_subject.holder_commitment.clone()),
         };
 
         Ok(ZkProof {

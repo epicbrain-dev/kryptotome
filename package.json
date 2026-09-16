@@ -7,9 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc -b packages/sdk packages/bridge packages/vtt-adapter",
+    "build": "tsc -b packages/sdk packages/bridge packages/vtt-adapter && node packages/sdk/scripts/copy-wasm.mjs",
     "build:crates": "source \"$HOME/.cargo/env\" && cargo build --workspace",
-    "build:wasm": "source \"$HOME/.cargo/env\" && wasm-pack build crates/kryptotome-wasm --target web --out-dir ../../packages/sdk/wasm",
+    "build:wasm": "source \"$HOME/.cargo/env\" && cargo build --target wasm32-unknown-unknown -p kryptotome-wasm --profile release-wasm && wasm-bindgen target/wasm32-unknown-unknown/release-wasm/kryptotome_wasm.wasm --out-dir packages/sdk/wasm --target web && npx --yes wasm-opt -Oz --enable-bulk-memory --enable-nontrapping-float-to-int packages/sdk/wasm/kryptotome_wasm_bg.wasm -o packages/sdk/wasm/kryptotome_wasm_bg.wasm",
     "test": "node --test",
     "test:crates": "source \"$HOME/.cargo/env\" && cargo test --workspace",
     "typecheck": "tsc -b packages/sdk packages/bridge packages/vtt-adapter"
@@ -26,6 +26,7 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
+    "@types/node": "^22.20.3",
     "typescript": "^5.5.4"
   }
 }

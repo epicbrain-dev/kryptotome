@@ -5,8 +5,20 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./wasm": {
+      "types": "./dist/wasm/index.d.ts",
+      "import": "./dist/wasm/index.js",
+      "default": "./dist/wasm/index.js"
+    }
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-wasm.mjs",
     "test": "node --test"
   },
   "dependencies": {},

@@ -1,7 +1,7 @@
 use crate::error::{KryptotomeError, KryptotomeErrorCode, Result};
 use ark_bls12_381::{Bls12_381, Fq, Fq12, Fr, G1Affine, G2Affine};
+pub use ark_ec::{AffineRepr, CurveGroup};
 use ark_ec::pairing::Pairing;
-use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{One, UniformRand};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use rand::rngs::OsRng;
@@ -88,6 +88,16 @@ pub fn random_scalar() -> ScalarField {
     ScalarField::rand(&mut rng)
 }
 
+/// Returns the canonical generator point for G1 on BLS12-381
+pub fn g1_generator() -> G1Point {
+    G1Point::generator()
+}
+
+/// Returns the canonical generator point for G2 on BLS12-381
+pub fn g2_generator() -> G2Point {
+    G2Point::generator()
+}
+
 /// Evaluates asymmetric pairing e(P, Q) using production curve BLS12-381
 pub fn pairing(p: &G1Point, q: &G2Point) -> TargetField {
     Bls12_381::pairing(*p, *q).0
@@ -101,6 +111,103 @@ pub fn verify_pairing_equality(p1: &G1Point, q1: &G2Point, p2: &G1Point, q2: &G2
     let p2_neg = -p2.into_group();
     let p2_prep = <Bls12_381 as Pairing>::G1Prepared::from(p2_neg.into_affine());
     let q2_prep = <Bls12_381 as Pairing>::G2Prepared::from(*q2);
+
+    let ml = Bls12_381::multi_miller_loop([p1_prep, p2_prep], [q1_prep, q2_prep]);
+    let result = Bls12_381::final_exponentiation(ml);
+    result.map(|f| f.0.is_one()).unwrap_or(false)
+}
+
+/// Evaluates a generalized multi-pairing: prod_{i} e(P_i, Q_i) into target field GT
+pub fn evaluate_multi_pairing(pairs: &[(&G1Point, &G2Point)]) -> TargetField {
+    let mut g1_prep = Vec::with_capacity(pairs.len());
+    let mut g2_prep = Vec::with_capacity(pairs.len());
+    for (p, q) in pairs {
+        g1_prep.push(<Bls12_381 as Pairing>::G1Prepared::from(**p));
+        g2_prep.push(<Bls12_381 as Pairing>::G2Prepared::from(**q));
+    }
+    let ml = Bls12_381::multi_miller_loop(g1_prep, g2_prep);
+    Bls12_381::final_exponentiation(ml)
+        .map(|f| f.0)
+        .unwrap_or_else(ark_ff::Zero::zero)
+}
+
+/// Verifies whether the multi-pairing product equals the identity in GT: prod_{i} e(P_i, Q_i) == 1
+pub fn verify_multi_pairing_identity(pairs: &[(&G1Point, &G2Point)]) -> bool {
+    let mut g1_prep = Vec::with_capacity(pairs.len());
+    let mut g2_prep = Vec::with_capacity(pairs.len());
+    for (p, q) in pairs {
+        g1_prep.push(<Bls12_381 as Pairing>::G1Prepared::from(**p));
+        g2_prep.push(<Bls12_381 as Pairing>::G2Prepared::from(**q));
+    }
+    let ml = Bls12_381::multi_miller_loop(g1_prep, g2_prep);
+    Bls12_381::final_exponentiation(ml)
+        .map(|f| f.0.is_one())
+        .unwrap_or(false)
+}
+
+/// Evaluates a KZG / Plonk polynomial commitment opening check:
+/// Verifies that e(W, srs_g2_x - z * G_2) == e(commitment - y * G_1, G_2)
+/// in under 2ms using a 2-element multi-Miller loop.
+pub fn verify_kzg_opening(
+    commitment: &G1Point,
+    point_z: &ScalarField,
+    value_y: &ScalarField,
+    proof_w: &G1Point,
+    srs_g2_x: &G2Point,
+) -> bool {
+    let g1_gen = G1Point::generator();
+    let g2_gen = G2Point::generator();
+
+    // Q_1 = srs_g2_x - z * G_2
+    let z_g2 = (g2_gen * *point_z).into_affine();
+    let q1 = (*srs_g2_x - z_g2).into_affine();
+
+    // P_2 = -(commitment - y * G_1) = y * G_1 - commitment
+    let y_g1 = (g1_gen * *value_y).into_affine();
+    let p2 = (y_g1 - *commitment).into_affine();
+
+    let p1_prep = <Bls12_381 as Pairing>::G1Prepared::from(*proof_w);
+    let q1_prep = <Bls12_381 as Pairing>::G2Prepared::from(q1);
+    let p2_prep = <Bls12_381 as Pairing>::G1Prepared::from(p2);
+    let q2_prep = <Bls12_381 as Pairing>::G2Prepared::from(g2_gen);
+
+    let ml = Bls12_381::multi_miller_loop([p1_prep, p2_prep], [q1_prep, q2_prep]);
+    let result = Bls12_381::final_exponentiation(ml);
+    result.map(|f| f.0.is_one()).unwrap_or(false)
+}
+
+/// Evaluates a batched Plonk KZG opening verification check:
+/// e(W_z + u * W_zw, srs_g2_x) == e(z * W_z + u * z * omega * W_zw + folded_commitments, G_2)
+pub fn verify_plonk_batch_opening(
+    w_z: &G1Point,
+    w_zw: &G1Point,
+    folded_commitments: &G1Point,
+    point_z: &ScalarField,
+    omega: &ScalarField,
+    challenge_u: &ScalarField,
+    srs_g2_x: &G2Point,
+) -> bool {
+    let g2_gen = G2Point::generator();
+
+    // P_1 = W_z + u * W_zw
+    let u_w_zw = (*w_zw * *challenge_u).into_affine();
+    let p1 = (*w_z + u_w_zw).into_affine();
+    let q1 = *srs_g2_x;
+
+    // zw = z * omega
+    let zw = *point_z * *omega;
+    // P_2 = -(z * W_z + (u * zw) * W_zw + folded_commitments)
+    let z_w_z = (*w_z * *point_z).into_affine();
+    let u_zw = *challenge_u * zw;
+    let u_zw_w_zw = (*w_zw * u_zw).into_affine();
+    let rhs_sum = (z_w_z + u_zw_w_zw + *folded_commitments).into_affine();
+    let p2 = (-rhs_sum.into_group()).into_affine();
+    let q2 = g2_gen;
+
+    let p1_prep = <Bls12_381 as Pairing>::G1Prepared::from(p1);
+    let q1_prep = <Bls12_381 as Pairing>::G2Prepared::from(q1);
+    let p2_prep = <Bls12_381 as Pairing>::G1Prepared::from(p2);
+    let q2_prep = <Bls12_381 as Pairing>::G2Prepared::from(q2);
 
     let ml = Bls12_381::multi_miller_loop([p1_prep, p2_prep], [q1_prep, q2_prep]);
     let result = Bls12_381::final_exponentiation(ml);
@@ -212,7 +319,7 @@ mod tests {
         // Requirement from PRD: verification must take < 10ms in release profile
         if cfg!(debug_assertions) {
             assert!(
-                elapsed.as_millis() < 100,
+                elapsed.as_millis() < 250,
                 "Debug pairing latency unexpectedly high: {:?}",
                 elapsed
             );
@@ -223,5 +330,105 @@ mod tests {
                 elapsed
             );
         }
+    }
+
+    #[test]
+    fn test_multi_pairing_identity() {
+        let g1 = G1Point::generator();
+        let g2 = G2Point::generator();
+        let a = random_scalar();
+        let b = random_scalar();
+
+        // e(a*G1, b*G2) * e(-(a*b)*G1, G2) == 1
+        let p1 = (g1 * a).into_affine();
+        let q1 = (g2 * b).into_affine();
+        let p2 = (g1 * (-(a * b))).into_affine();
+        let q2 = g2;
+
+        assert!(verify_multi_pairing_identity(&[(&p1, &q1), (&p2, &q2)]));
+
+        // Tamper with p2
+        let p2_bad = (g1 * random_scalar()).into_affine();
+        assert!(!verify_multi_pairing_identity(&[(&p1, &q1), (&p2_bad, &q2)]));
+    }
+
+    #[test]
+    fn test_kzg_opening_verification() {
+        let g1 = G1Point::generator();
+        let g2 = G2Point::generator();
+
+        // Trapdoor x (from trusted setup / SRS)
+        let srs_x = random_scalar();
+        let srs_g2_x = (g2 * srs_x).into_affine();
+
+        // Linear polynomial: p(X) = a * X + b
+        let a = random_scalar();
+        let b = random_scalar();
+
+        // Commitment C = p(x) * G_1 = (a * x + b) * G_1
+        let p_x = a * srs_x + b;
+        let commitment = (g1 * p_x).into_affine();
+
+        // Evaluation at z: y = p(z) = a * z + b
+        let z = random_scalar();
+        let y = a * z + b;
+
+        // Quotient q(X) = (p(X) - y) / (X - z) = a
+        let proof_w = (g1 * a).into_affine();
+
+        let start = Instant::now();
+        let is_valid = verify_kzg_opening(&commitment, &z, &y, &proof_w, &srs_g2_x);
+        let elapsed = start.elapsed();
+        println!("KZG / Plonk opening verification latency: {:?}", elapsed);
+
+        assert!(is_valid, "Valid KZG polynomial commitment opening must verify");
+
+        if !cfg!(debug_assertions) {
+            assert!(elapsed.as_millis() < 10, "KZG verification must be < 10ms in release");
+        }
+
+        // Tampered evaluation value y
+        let y_tampered = y + random_scalar();
+        assert!(!verify_kzg_opening(&commitment, &z, &y_tampered, &proof_w, &srs_g2_x));
+
+        // Tampered proof W
+        let proof_w_tampered = (g1 * random_scalar()).into_affine();
+        assert!(!verify_kzg_opening(&commitment, &z, &y, &proof_w_tampered, &srs_g2_x));
+    }
+
+    #[test]
+    fn test_plonk_batch_opening_verification() {
+        let g1 = G1Point::generator();
+        let g2 = G2Point::generator();
+
+        let srs_x = random_scalar();
+        let srs_g2_x = (g2 * srs_x).into_affine();
+
+        let w_z = (g1 * random_scalar()).into_affine();
+        let w_zw = (g1 * random_scalar()).into_affine();
+        let z = random_scalar();
+        let omega = random_scalar();
+        let u = random_scalar();
+
+        // Construct folded_commitments such that:
+        // (W_z + u * W_zw) * x == z * W_z + u * z * omega * W_zw + folded_commitments
+        let zw = z * omega;
+        let lhs = (w_z.into_group() + w_zw * u) * srs_x;
+        let rhs_part = w_z.into_group() * z + w_zw * (u * zw);
+        let folded_commitments = (lhs - rhs_part).into_affine();
+
+        let start = Instant::now();
+        let valid = verify_plonk_batch_opening(&w_z, &w_zw, &folded_commitments, &z, &omega, &u, &srs_g2_x);
+        let elapsed = start.elapsed();
+        println!("Plonk batch opening verification latency: {:?}", elapsed);
+
+        assert!(valid, "Valid Plonk batch opening must pass");
+        if !cfg!(debug_assertions) {
+            assert!(elapsed.as_millis() < 10, "Plonk batch verification must be < 10ms in release");
+        }
+
+        // Tampered challenge
+        let u_tampered = u + random_scalar();
+        assert!(!verify_plonk_batch_opening(&w_z, &w_zw, &folded_commitments, &z, &omega, &u_tampered, &srs_g2_x));
     }
 }

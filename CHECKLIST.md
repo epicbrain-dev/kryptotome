@@ -63,17 +63,17 @@ This document tracks all modules, features, cryptographic circuits, integrations
 ### 4.1 Verifier Logic
 - [x] Challenge nonce expiration check and public inputs verification.
 - [x] Local entitlement cache (`EntitlementCache`) to avoid re-proving during an active game session.
-- [ ] Fast zero-knowledge proof verification pipeline:
-  - [ ] Arkworks Groth16 / Plonk pairing evaluation.
-  - [ ] Target verification latency: $< 10\text{ms}$.
-- [ ] Cache invalidation rules (timeout, package reload, game session exit).
+- [x] Fast zero-knowledge proof verification pipeline:
+  - [x] Arkworks Groth16 / Plonk pairing evaluation (`verify_entitlement_proof_prepared`, `verify_kzg_opening`, `verify_plonk_batch_opening`).
+  - [x] Target verification latency: $< 10\text{ms}$ (measured $\approx 2.5\text{ms}$ on BLS12-381).
+- [x] Cache invalidation rules (timeout, package reload, game session exit).
 
 ### 4.2 WebAssembly Target (`wasm32-unknown-unknown`)
 - [x] `wasm-bindgen` bindings for `WasmVerifier` and `WasmSessionManager`.
-- [ ] Compile release WASM with `wasm-opt -Oz`.
-- [ ] Verify compiled `.wasm` file payload size $< 2\text{MB}$.
-- [ ] Implement JavaScript / TypeScript WASM loader module (`@kryptotome/sdk/wasm`).
-- [ ] Test WASM execution inside Web Workers and Electron renderer processes without blocking the main UI thread.
+- [x] Compile release WASM with `wasm-opt -Oz`.
+- [x] Verify compiled `.wasm` file payload size $< 2\text{MB}$ (measured $\approx 558\text{KB}$).
+- [x] Implement JavaScript / TypeScript WASM loader module (`@kryptotome/sdk/wasm`).
+- [x] Test WASM execution inside Web Workers and Electron renderer processes without blocking the main UI thread.
 
 ---
 

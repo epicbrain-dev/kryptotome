@@ -71,6 +71,8 @@ pub struct ProofInputs {
     pub package_id: String,
     pub content_digest: String,
     pub publisher_pubkey_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub holder_commitment: Option<String>,
 }
 
 /// Publisher verification key

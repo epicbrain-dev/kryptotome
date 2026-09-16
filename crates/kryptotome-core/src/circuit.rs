@@ -2,7 +2,7 @@ use crate::curve::ScalarField;
 use crate::error::{KryptotomeError, KryptotomeErrorCode, Result};
 use ark_bls12_381::Bls12_381;
 use ark_ff::{Field, PrimeField, Zero};
-use ark_groth16::{Groth16, Proof, ProvingKey, VerifyingKey};
+use ark_groth16::{Groth16, PreparedVerifyingKey, Proof, ProvingKey, VerifyingKey};
 use ark_r1cs_std::fields::fp::FpVar;
 use ark_r1cs_std::prelude::*;
 use ark_relations::gr1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
@@ -25,13 +25,26 @@ pub type Groth16ProvingKey = ProvingKey<Bls12_381>;
 /// Type alias for Groth16 BLS12-381 verifying key
 pub type Groth16VerifyingKey = VerifyingKey<Bls12_381>;
 
+/// Type alias for Groth16 BLS12-381 prepared verifying key
+pub type Groth16PreparedVerifyingKey = PreparedVerifyingKey<Bls12_381>;
+
 static GLOBAL_SETUP: OnceLock<(Groth16ProvingKey, Groth16VerifyingKey)> = OnceLock::new();
+static GLOBAL_PREPARED_VK: OnceLock<Groth16PreparedVerifyingKey> = OnceLock::new();
 
 /// Returns a reference to the global lazily initialized Groth16 parameters for the entitlement circuit
 pub fn get_or_init_entitlement_setup() -> &'static (Groth16ProvingKey, Groth16VerifyingKey) {
     GLOBAL_SETUP.get_or_init(|| {
-        let mut rng = rand::rngs::OsRng;
+        use rand::SeedableRng;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x4b727970746f);
         generate_entitlement_setup(&mut rng).expect("Global entitlement circuit setup failed")
+    })
+}
+
+/// Returns a reference to the global lazily initialized Groth16 prepared verifying key
+pub fn get_or_init_entitlement_prepared_vk() -> &'static Groth16PreparedVerifyingKey {
+    GLOBAL_PREPARED_VK.get_or_init(|| {
+        let (_, vk) = get_or_init_entitlement_setup();
+        prepare_verifying_key(vk)
     })
 }
 
@@ -259,6 +272,25 @@ pub fn verify_entitlement_proof(
     Groth16::<Bls12_381>::verify(vk, public_inputs, proof).map_err(|e| KryptotomeError::Detailed {
         code: KryptotomeErrorCode::Kryp301ZkProofVerificationFailed,
         message: format!("Zero-knowledge proof verification failed: {}", e),
+    })
+}
+
+/// Prepares a Groth16 verifying key for accelerated multi-pairing evaluation
+pub fn prepare_verifying_key(vk: &Groth16VerifyingKey) -> Groth16PreparedVerifyingKey {
+    Groth16PreparedVerifyingKey::from(vk.clone())
+}
+
+/// Verifies a zero-knowledge entitlement proof using a precomputed prepared verifying key (< 2ms)
+pub fn verify_entitlement_proof_prepared(
+    pvk: &Groth16PreparedVerifyingKey,
+    public_inputs: &[ScalarField],
+    proof: &Groth16Proof,
+) -> Result<bool> {
+    Groth16::<Bls12_381>::verify_proof(pvk, proof, public_inputs).map_err(|e| {
+        KryptotomeError::Detailed {
+            code: KryptotomeErrorCode::Kryp301ZkProofVerificationFailed,
+            message: format!("Zero-knowledge proof verification failed: {}", e),
+        }
     })
 }
 
@@ -640,6 +672,13 @@ impl EntitlementProofBundle {
         verify_entitlement_proof(vk, &inputs, &proof)
     }
 
+    /// Verifies this bundle against a precomputed Groth16 prepared verifying key (< 2ms)
+    pub fn verify_prepared(&self, pvk: &Groth16PreparedVerifyingKey) -> Result<bool> {
+        let proof = self.extract_proof()?;
+        let inputs = self.extract_public_inputs()?;
+        verify_entitlement_proof_prepared(pvk, &inputs, &proof)
+    }
+
     /// Serializes bundle to formatted JSON string
     pub fn to_json(&self) -> Result<String> {
         serde_json::to_string_pretty(self).map_err(|e| KryptotomeError::Detailed {
@@ -898,6 +937,17 @@ mod tests {
             assert!(verify_duration.as_millis() < 10, "Verification duration must be < 10ms in release mode");
         } else {
             assert!(verify_duration.as_millis() < 500, "Verification duration in debug mode");
+        }
+
+        // Test prepared verifying key (< 2ms)
+        let pvk = prepare_verifying_key(&vk);
+        let prep_start = Instant::now();
+        let is_valid_prep = verify_entitlement_proof_prepared(&pvk, &public_inputs, &proof).unwrap();
+        let prep_duration = prep_start.elapsed();
+        println!("Groth16 prepared proof verification duration: {:?}", prep_duration);
+        assert!(is_valid_prep, "Prepared VK verification must pass");
+        if !cfg!(debug_assertions) {
+            assert!(prep_duration.as_millis() < 10, "Prepared VK verification must be < 10ms in release mode");
         }
 
         // 3. Test tamper resistance: invalid nonce must fail
