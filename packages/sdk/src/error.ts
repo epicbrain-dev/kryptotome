@@ -9,6 +9,7 @@ export type KryptotomeErrorCode =
   | 'KRYP-104' // InvalidTemporalBounds
   | 'KRYP-105' // MalformedProofStructure
   | 'KRYP-106' // InvalidManifestSchema
+  | 'KRYP-107' // CredentialRevoked
 
   // 200 Series: Cryptographic Signatures
   | 'KRYP-201' // SignatureVerificationFailed
@@ -86,6 +87,10 @@ export const KRYPTOTOME_ERROR_METADATA: Record<KryptotomeErrorCode, Omit<ErrorDe
   'KRYP-106': {
     category: 'Schema & Standards Compliance',
     description: 'Package manifest schema is invalid or malformed',
+  },
+  'KRYP-107': {
+    category: 'Schema & Standards Compliance',
+    description: 'Credential has been revoked by publisher revocation list or Merkle tree',
   },
 
   'KRYP-201': {

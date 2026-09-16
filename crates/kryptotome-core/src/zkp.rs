@@ -1,3 +1,4 @@
+use base64::prelude::*;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +34,33 @@ impl ChallengeNonce {
 pub struct ZkProof {
     pub proof_bytes: Vec<u8>,
     pub public_inputs: ProofInputs,
+}
+
+impl ZkProof {
+    /// Encodes proof bytes as standard Base64
+    pub fn to_base64(&self) -> String {
+        base64::prelude::BASE64_STANDARD.encode(&self.proof_bytes)
+    }
+
+    /// Encodes proof bytes as URL-safe unpadded Base64
+    pub fn to_base64_url(&self) -> String {
+        base64::prelude::BASE64_URL_SAFE_NO_PAD.encode(&self.proof_bytes)
+    }
+
+    /// Decodes proof from Base64 string with public inputs
+    pub fn from_base64(s: &str, public_inputs: ProofInputs) -> crate::error::Result<Self> {
+        let proof_bytes = base64::prelude::BASE64_STANDARD
+            .decode(s.trim())
+            .or_else(|_| base64::prelude::BASE64_URL_SAFE_NO_PAD.decode(s.trim()))
+            .map_err(|e| crate::error::KryptotomeError::Detailed {
+                code: crate::error::KryptotomeErrorCode::Kryp303MalformedProofEncoding,
+                message: format!("Invalid proof Base64: {}", e),
+            })?;
+        Ok(Self {
+            proof_bytes,
+            public_inputs,
+        })
+    }
 }
 
 /// Public inputs exposed to verifier

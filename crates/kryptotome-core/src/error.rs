@@ -17,6 +17,8 @@ pub enum KryptotomeErrorCode {
     Kryp105MalformedProofStructure,
     #[serde(rename = "KRYP-106")]
     Kryp106InvalidManifestSchema,
+    #[serde(rename = "KRYP-107")]
+    Kryp107CredentialRevoked,
 
     // 200 Series: Cryptographic Signatures
     #[serde(rename = "KRYP-201")]
@@ -104,6 +106,7 @@ impl KryptotomeErrorCode {
             Self::Kryp104InvalidTemporalBounds => "KRYP-104",
             Self::Kryp105MalformedProofStructure => "KRYP-105",
             Self::Kryp106InvalidManifestSchema => "KRYP-106",
+            Self::Kryp107CredentialRevoked => "KRYP-107",
 
             Self::Kryp201SignatureVerificationFailed => "KRYP-201",
             Self::Kryp202InvalidPublicKeyFormat => "KRYP-202",
@@ -152,7 +155,8 @@ impl KryptotomeErrorCode {
             | Self::Kryp103InvalidUriIdentifier
             | Self::Kryp104InvalidTemporalBounds
             | Self::Kryp105MalformedProofStructure
-            | Self::Kryp106InvalidManifestSchema => "Schema & Standards Compliance",
+            | Self::Kryp106InvalidManifestSchema
+            | Self::Kryp107CredentialRevoked => "Schema & Standards Compliance",
 
             Self::Kryp201SignatureVerificationFailed
             | Self::Kryp202InvalidPublicKeyFormat
@@ -202,6 +206,7 @@ impl KryptotomeErrorCode {
             Self::Kryp104InvalidTemporalBounds => "Temporal bounds invalid (validUntil must be strictly after validFrom)",
             Self::Kryp105MalformedProofStructure => "Proof structure is malformed or purpose is not 'assertionMethod'",
             Self::Kryp106InvalidManifestSchema => "Package manifest schema is invalid or malformed",
+            Self::Kryp107CredentialRevoked => "Credential has been revoked by publisher revocation list or Merkle tree",
 
             Self::Kryp201SignatureVerificationFailed => "Asymmetric digital signature verification failed",
             Self::Kryp202InvalidPublicKeyFormat => "Public key format is invalid or key length mismatch",
@@ -261,6 +266,9 @@ pub enum KryptotomeError {
     #[error("[KRYP-101] W3C VC v2.0 compliance error: {0}")]
     W3cComplianceError(String),
 
+    #[error("[KRYP-107] Credential has been revoked: {0}")]
+    CredentialRevoked(String),
+
     #[error("[KRYP-201] Cryptographic signature verification failed: {0}")]
     SignatureVerificationFailed(String),
 
@@ -297,6 +305,7 @@ impl KryptotomeError {
         match self {
             Self::Detailed { code, .. } => *code,
             Self::W3cComplianceError(_) => KryptotomeErrorCode::Kryp101InvalidContext,
+            Self::CredentialRevoked(_) => KryptotomeErrorCode::Kryp107CredentialRevoked,
             Self::SignatureVerificationFailed(_) => KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
             Self::ZkProofVerificationFailed(_) => KryptotomeErrorCode::Kryp301ZkProofVerificationFailed,
             Self::InvalidChallenge(_) => KryptotomeErrorCode::Kryp401ChallengeExpired,
@@ -310,6 +319,7 @@ impl KryptotomeError {
         }
     }
 }
+
 
 pub type Result<T> = std::result::Result<T, KryptotomeError>;
 

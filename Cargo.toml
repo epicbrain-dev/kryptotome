@@ -29,6 +29,11 @@ rand = "0.8"
 subtle = "2.6"
 tokio = { version = "1.38", features = ["macros", "rt-multi-thread", "fs", "io-util"] }
 chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+base64 = "0.22"
+zeroize = { version = "1.8", features = ["derive"] }
+argon2 = { version = "0.5", features = ["std", "zeroize"] }
+aes-gcm = { version = "0.10", features = ["std", "zeroize"] }
+chacha20poly1305 = { version = "0.10", features = ["std", "alloc"] }
 
 # Local workspace members
 kryptotome-core = { path = "crates/kryptotome-core" }

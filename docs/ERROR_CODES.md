@@ -29,6 +29,7 @@ This document defines the authoritative error codes taxonomy shared across all K
 - **`KRYP-104` (`InvalidTemporalBounds`)**: Temporal ordering violation (`validUntil <= validFrom`) or invalid timestamp format.
 - **`KRYP-105` (`MalformedProofStructure`)**: Proof is malformed, missing `verificationMethod`, or purpose is not `assertionMethod`.
 - **`KRYP-106` (`InvalidManifestSchema`)**: Publisher package manifest does not conform to `manifest.schema.json`.
+- **`KRYP-107` (`CredentialRevoked`)**: Credential has been revoked by publisher revocation list or Merkle tree.
 
 ### 200 Series: Cryptographic Signatures
 - **`KRYP-201` (`SignatureVerificationFailed`)**: Asymmetric digital signature (Ed25519) verification failed against data payload.
