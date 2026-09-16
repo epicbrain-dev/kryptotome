@@ -6,9 +6,14 @@ authors.workspace = true
 license.workspace = true
 description = "Publisher signing toolchain and local vault CLI for Kryptotome protocol."
 
+[lib]
+name = "kryptotome_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "kryptotome"
 path = "src/main.rs"
+
 
 [dependencies]
 kryptotome-core = { workspace = true }
@@ -21,3 +26,11 @@ tokio = { workspace = true }
 ed25519-dalek = { workspace = true }
 rand = { workspace = true }
 chrono = { workspace = true }
+indicatif = { workspace = true }
+sha2 = { workspace = true }
+blake3 = { workspace = true }
+tar = { workspace = true }
+flate2 = { workspace = true }
+
+
+

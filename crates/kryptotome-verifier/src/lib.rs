@@ -10,7 +10,11 @@ pub use cache::{
     CachedEntitlement, EntitlementCache, InvalidationEvent, InvalidationReason,
     DEFAULT_CACHE_TTL_SECONDS,
 };
-pub use session::{SessionAttestation, SessionManager};
+pub use session::{
+    DEFAULT_SESSION_DURATION_MINUTES, EntitlementProvider, MountedCompendiumSession,
+    PeerAccessRequest, PeerAccessResponse, PeerSessionClient, PeerSessionRenewalRequest,
+    RevocationEntry, ScopePolicy, SessionAttestation, SessionManager, SessionRevocationNotice,
+};
 
 use kryptotome_core::{
     deserialize_proof_compressed, deserialize_vk_compressed, get_or_init_entitlement_prepared_vk,

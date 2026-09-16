@@ -34,6 +34,11 @@ zeroize = { version = "1.8", features = ["derive"] }
 argon2 = { version = "0.5", features = ["std", "zeroize"] }
 aes-gcm = { version = "0.10", features = ["std", "zeroize"] }
 chacha20poly1305 = { version = "0.10", features = ["std", "alloc"] }
+indicatif = "0.17"
+tar = "0.4"
+flate2 = "1.0"
+
+
 
 # Local workspace members
 kryptotome-core = { path = "crates/kryptotome-core" }

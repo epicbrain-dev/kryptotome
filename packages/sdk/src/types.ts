@@ -74,3 +74,55 @@ export interface EntitlementProofBundle {
   holderCommitmentUrn: string;
 }
 
+export interface PeerAccessRequest {
+  recipientPeerId: string;
+  packageId: string;
+  nonce: string;
+  timestamp: string;
+}
+
+export interface PeerAccessResponse {
+  attestation: SessionAttestation;
+  hostPublicKeyHex: string;
+  nonce: string;
+}
+
+export interface MountedCompendiumSession {
+  packageId: string;
+  contentDigest: string;
+  hostPeerId: string;
+  recipientPeerId: string;
+  sessionId: string;
+  permittedScopes: string[];
+  issuedAt: string;
+  expiresAt: string;
+  mountedAt: string;
+}
+
+export interface PeerSessionRenewalRequest {
+  sessionId: string;
+  recipientPeerId: string;
+  packageId: string;
+  renewalNonce: string;
+  currentSignatureHex: string;
+  timestamp: string;
+}
+
+export interface SessionRevocationNotice {
+  sessionId: string;
+  hostPeerId: string;
+  recipientPeerId: string;
+  packageId?: string;
+  revokedAt: string;
+  reason: string;
+  signatureHex: string;
+}
+
+export interface ScopePolicyConfig {
+  allowedScopes: string[];
+  restrictedScopes: string[];
+  peerOverrides?: Record<string, string[]>;
+}
+
+
+

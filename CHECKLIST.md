@@ -82,10 +82,10 @@ This document tracks all modules, features, cryptographic circuits, integrations
 - [x] CLI command parsing with `clap` (Commands: `sign-package`, `digest`, `keygen`, `vault-status`).
 - [x] Deterministic directory traversal and content digest computation.
 - [x] Manifest generation with package ID, publisher metadata, license attribution, and Ed25519 signature.
-- [ ] Support recursive directory scanning for multi-gigabyte compendiums with progress bars (`indicatif`).
-- [ ] Add manifest verification command: `kryptotome verify-manifest --manifest <path> --pubkey <key>`.
-- [ ] Support Paizo ORC, Creative Commons CC-BY-4.0, and CC0 license metadata validation.
-- [ ] Add batch signing and publisher release packaging command (`.ktome` archive bundling).
+- [x] Support recursive directory scanning for multi-gigabyte compendiums with progress bars (`indicatif`).
+- [x] Add manifest verification command: `kryptotome verify-manifest --manifest <path> --pubkey <key>`.
+- [x] Support Paizo ORC, Creative Commons CC-BY-4.0, and CC0 license metadata validation.
+- [x] Add batch signing and publisher release packaging command (`.ktome` archive bundling).
 
 ---
 
@@ -93,13 +93,13 @@ This document tracks all modules, features, cryptographic circuits, integrations
 
 - [x] Ephemeral `SessionAttestation` data model and Ed25519 signature verification.
 - [x] `SessionManager` for host/GM to issue time-scoped tokens for connected peers.
-- [ ] Peer authorization handshake protocol:
-  - [ ] Peer requests module access: sends `recipientPeerId` + requested `packageId`.
-  - [ ] Host checks local entitlement: verifies host owns module.
-  - [ ] Host issues signed `SessionAttestation` with short expiry (e.g. 4 hours).
-  - [ ] Peer validates host signature locally and mounts compendium in client memory.
-- [ ] Support dynamic scope limiting (e.g. GM allows players access to `spells` and `classes`, but hides `gm_notes` or `monsters`).
-- [ ] Session renewal and revocation mechanisms for disconnected peers.
+- [x] Peer authorization handshake protocol:
+  - [x] Peer requests module access: sends `recipientPeerId` + requested `packageId`.
+  - [x] Host checks local entitlement: verifies host owns module.
+  - [x] Host issues signed `SessionAttestation` with short expiry (e.g. 4 hours).
+  - [x] Peer validates host signature locally and mounts compendium in client memory.
+- [x] Support dynamic scope limiting (e.g. GM allows players access to `spells` and `classes`, but hides `gm_notes` or `monsters`).
+- [x] Session renewal and revocation mechanisms for disconnected peers.
 
 ---
 

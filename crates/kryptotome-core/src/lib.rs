@@ -44,8 +44,9 @@ pub use credential::{
 pub use digest::{
     compute_directory_digest, compute_directory_digest_blake3,
     compute_directory_digest_with_algorithm, compute_file_digest,
-    compute_file_digest_blake3, compute_file_digest_with_algorithm, ContentDigest,
-    DigestAlgorithm,
+    compute_file_digest_blake3, compute_file_digest_blake3_with_progress,
+    compute_file_digest_with_algorithm, compute_file_digest_with_progress,
+    ContentDigest, DigestAlgorithm,
 };
 pub use error::{KryptotomeError, Result};
 pub use zkp::{ChallengeNonce, ProofInputs, VerificationKey, ZkProof};

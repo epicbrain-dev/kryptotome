@@ -71,45 +71,53 @@ impl ContentDigest {
     }
 }
 
-/// Computes file digest with chosen algorithm (SHA-256 or BLAKE3)
-pub fn compute_file_digest_with_algorithm<P: AsRef<Path>>(
+/// Computes file digest with chosen algorithm (SHA-256 or BLAKE3) with a byte progress callback.
+/// The callback is invoked with the number of bytes read in each chunk.
+pub fn compute_file_digest_with_progress<P: AsRef<Path>, F: FnMut(u64)>(
     path: P,
     algorithm: DigestAlgorithm,
+    mut on_bytes: F,
 ) -> Result<String> {
+    const BUFFER_SIZE: usize = 131072; // 128 KB buffer for high I/O throughput on multi-gigabyte files
+    let mut file = File::open(path)?;
+    let mut buffer = [0u8; BUFFER_SIZE];
+
     match algorithm {
         DigestAlgorithm::Sha256 => {
-            let mut file = File::open(path)?;
             let mut hasher = Sha256::new();
-            let mut buffer = [0u8; 65536];
-
             loop {
                 let count = file.read(&mut buffer)?;
                 if count == 0 {
                     break;
                 }
                 hasher.update(&buffer[..count]);
+                on_bytes(count as u64);
             }
-
             let result = hasher.finalize();
             Ok(hex_encode(&result))
         }
         DigestAlgorithm::Blake3 => {
             let mut hasher = blake3::Hasher::new();
-            let mut file = File::open(path)?;
-            let mut buffer = [0u8; 65536];
-
             loop {
                 let count = file.read(&mut buffer)?;
                 if count == 0 {
                     break;
                 }
                 hasher.update(&buffer[..count]);
+                on_bytes(count as u64);
             }
-
             let result = hasher.finalize();
             Ok(result.to_hex().to_string())
         }
     }
+}
+
+/// Computes file digest with chosen algorithm (SHA-256 or BLAKE3)
+pub fn compute_file_digest_with_algorithm<P: AsRef<Path>>(
+    path: P,
+    algorithm: DigestAlgorithm,
+) -> Result<String> {
+    compute_file_digest_with_progress(path, algorithm, |_| {})
 }
 
 /// Computes SHA-256 digest of a single file (default)
@@ -120,6 +128,14 @@ pub fn compute_file_digest<P: AsRef<Path>>(path: P) -> Result<String> {
 /// Computes BLAKE3 digest of a single file for high-throughput compendium processing
 pub fn compute_file_digest_blake3<P: AsRef<Path>>(path: P) -> Result<String> {
     compute_file_digest_with_algorithm(path, DigestAlgorithm::Blake3)
+}
+
+/// Computes BLAKE3 digest of a single file with a streaming chunk progress callback
+pub fn compute_file_digest_blake3_with_progress<P: AsRef<Path>, F: FnMut(u64)>(
+    path: P,
+    on_bytes: F,
+) -> Result<String> {
+    compute_file_digest_with_progress(path, DigestAlgorithm::Blake3, on_bytes)
 }
 
 /// Computes deterministic root digest of a directory schema with specified algorithm
@@ -248,4 +264,35 @@ mod tests {
         // Cleanup
         std::fs::remove_dir_all(temp_dir).unwrap();
     }
+
+    #[test]
+    fn test_compute_file_digest_with_progress() {
+        let temp_dir = std::env::temp_dir().join(format!("ktome_test_prog_{}", rand::random::<u32>()));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join("large_sample.bin");
+
+        // Write 300KB of test data (exceeding 128KB chunk boundary)
+        let sample_data = vec![0x42u8; 300 * 1024];
+        std::fs::write(&test_file, &sample_data).unwrap();
+
+        let mut sha256_bytes_seen = 0u64;
+        let sha256_digest = compute_file_digest_with_progress(
+            &test_file,
+            DigestAlgorithm::Sha256,
+            |chunk_len| sha256_bytes_seen += chunk_len,
+        ).unwrap();
+        assert_eq!(sha256_bytes_seen, 300 * 1024);
+        assert_eq!(sha256_digest, compute_file_digest(&test_file).unwrap());
+
+        let mut b3_bytes_seen = 0u64;
+        let b3_digest = compute_file_digest_blake3_with_progress(
+            &test_file,
+            |chunk_len| b3_bytes_seen += chunk_len,
+        ).unwrap();
+        assert_eq!(b3_bytes_seen, 300 * 1024);
+        assert_eq!(b3_digest, compute_file_digest_blake3(&test_file).unwrap());
+
+        std::fs::remove_dir_all(temp_dir).unwrap();
+    }
 }
+
