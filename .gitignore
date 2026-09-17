@@ -18,6 +18,7 @@ pnpm-debug.log*
 # WASM
 pkg/
 *.wasm
+!packages/sdk/wasm/*.wasm
 
 # Secrets & Keys (Do not commit real private keys or local vaults)
 *.key

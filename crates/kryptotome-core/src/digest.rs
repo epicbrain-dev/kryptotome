@@ -193,7 +193,7 @@ fn collect_dir_entries_recursive(
                 .strip_prefix(base_dir)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
                 .to_string_lossy()
-                .to_string();
+                .replace('\\', "/");
             let digest = compute_file_digest_with_algorithm(&path, algorithm)?;
             entries.push((rel_path, digest));
         } else if path.is_dir() {

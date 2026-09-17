@@ -198,7 +198,7 @@ impl CompendiumScanner {
                     .strip_prefix(base_dir)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
                     .to_string_lossy()
-                    .to_string();
+                    .replace('\\', "/");
 
                 if rel_path == "manifest.json" {
                     continue;
