@@ -438,12 +438,17 @@ mod tests {
 
     #[test]
     fn test_verifier_selective_disclosure() {
-        use rand::rngs::OsRng;
+        use rand::{rngs::OsRng, RngCore};
         let mut verifier = EmbeddedVerifier::new();
 
         let (pk, _) = kryptotome_core::get_or_init_selective_disclosure_setup();
         let secret = [77u8; 32];
-        let challenge_nonce = "challenge-selective-test-99";
+        let mut nonce_bytes = [0u8; 16];
+        OsRng.fill_bytes(&mut nonce_bytes);
+        let challenge_nonce = nonce_bytes
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>();
         let item_digest = "sha256:spell-fireball-test";
         let compendium_root = "sha256:root-test";
         let publisher_pubkey = "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899";
@@ -452,7 +457,7 @@ mod tests {
         let (proof, public_inputs) = kryptotome_core::circuit::prove_selective_disclosure_for_item(
             pk,
             &secret,
-            challenge_nonce,
+            &challenge_nonce,
             item_digest,
             compendium_root,
             publisher_pubkey,
@@ -464,7 +469,7 @@ mod tests {
         let bundle = SelectiveDisclosureProofBundle::new(
             &proof,
             &public_inputs,
-            challenge_nonce,
+            &challenge_nonce,
             item_digest,
             publisher_pubkey,
             holder_commitment,
@@ -473,13 +478,13 @@ mod tests {
 
         // Verification passes with expected challenge nonce
         let is_valid = verifier
-            .verify_selective_disclosure(&bundle, challenge_nonce)
+            .verify_selective_disclosure(&bundle, &challenge_nonce)
             .unwrap();
         assert!(is_valid);
 
         // Replay rejected: second attempt with same nonce fails
         let replay_err = verifier
-            .verify_selective_disclosure(&bundle, challenge_nonce)
+            .verify_selective_disclosure(&bundle, &challenge_nonce)
             .unwrap_err();
         assert!(matches!(
             replay_err,
