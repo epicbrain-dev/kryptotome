@@ -433,10 +433,21 @@ export class ErrataSyncDispatcher {
     if (!path || path === '/') {
       return [];
     }
-    return path
+    const tokens = path
       .replace(/^\//, '')
       .split('/')
       .map((token) => token.replace(/~1/g, '/').replace(/~0/g, '~'));
+
+    for (const token of tokens) {
+      if (token === '__proto__' || token === 'constructor' || token === 'prototype') {
+        throw new KryptotomeError(
+          'KRYP-501',
+          `Invalid JSON pointer path: forbidden property access '${token}'`
+        );
+      }
+    }
+
+    return tokens;
   }
 
   private applyAdd(root: any, tokens: string[], value: any): void {
@@ -447,6 +458,9 @@ export class ErrataSyncDispatcher {
     let curr = root;
     for (let i = 0; i < tokens.length - 1; i++) {
       const token = tokens[i];
+      if (token === '__proto__' || token === 'constructor' || token === 'prototype') {
+        throw new KryptotomeError('KRYP-501', `Forbidden property access: ${token}`);
+      }
       if (!(token in curr)) {
         curr[token] = /^\d+$/.test(tokens[i + 1]) ? [] : {};
       }
@@ -454,6 +468,10 @@ export class ErrataSyncDispatcher {
     }
 
     const lastToken = tokens[tokens.length - 1];
+    if (lastToken === '__proto__' || lastToken === 'constructor' || lastToken === 'prototype') {
+      throw new KryptotomeError('KRYP-501', `Forbidden property assignment: ${lastToken}`);
+    }
+
     if (Array.isArray(curr)) {
       const index = lastToken === '-' ? curr.length : parseInt(lastToken, 10);
       curr.splice(index, 0, value);
@@ -469,13 +487,20 @@ export class ErrataSyncDispatcher {
 
     let curr = root;
     for (let i = 0; i < tokens.length - 1; i++) {
-      curr = curr[tokens[i]];
+      const token = tokens[i];
+      if (token === '__proto__' || token === 'constructor' || token === 'prototype') {
+        throw new KryptotomeError('KRYP-501', `Forbidden property access: ${token}`);
+      }
+      curr = curr[token];
       if (curr === undefined) {
         throw new KryptotomeError('KRYP-501', `Cannot replace value at missing path`);
       }
     }
 
     const lastToken = tokens[tokens.length - 1];
+    if (lastToken === '__proto__' || lastToken === 'constructor' || lastToken === 'prototype') {
+      throw new KryptotomeError('KRYP-501', `Forbidden property assignment: ${lastToken}`);
+    }
     curr[lastToken] = value;
   }
 
@@ -486,13 +511,21 @@ export class ErrataSyncDispatcher {
 
     let curr = root;
     for (let i = 0; i < tokens.length - 1; i++) {
-      curr = curr[tokens[i]];
+      const token = tokens[i];
+      if (token === '__proto__' || token === 'constructor' || token === 'prototype') {
+        return;
+      }
+      curr = curr[token];
       if (curr === undefined) {
         return;
       }
     }
 
     const lastToken = tokens[tokens.length - 1];
+    if (lastToken === '__proto__' || lastToken === 'constructor' || lastToken === 'prototype') {
+      return;
+    }
+
     if (Array.isArray(curr)) {
       const index = parseInt(lastToken, 10);
       curr.splice(index, 1);
@@ -504,6 +537,9 @@ export class ErrataSyncDispatcher {
   private getValueAtPath(root: any, tokens: string[]): any {
     let curr = root;
     for (const token of tokens) {
+      if (token === '__proto__' || token === 'constructor' || token === 'prototype') {
+        return undefined;
+      }
       if (curr === null || curr === undefined || !(token in curr)) {
         return undefined;
       }

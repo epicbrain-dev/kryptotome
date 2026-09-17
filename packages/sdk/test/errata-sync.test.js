@@ -310,3 +310,36 @@ test('ErrataSyncDispatcher: applyErrata rejects package ID and digest mismatches
     }
   );
 });
+
+test('ErrataSyncDispatcher: rejects prototype-polluting JSON patch paths', () => {
+  const dispatcher = new ErrataSyncDispatcher();
+  const baseDoc = { a: 1, b: { c: 2 } };
+
+  assert.throws(
+    () => {
+      dispatcher.applyJsonPatch(baseDoc, [
+        { op: 'add', path: '/__proto__/polluted', value: 'yes' },
+      ]);
+    },
+    (err) => {
+      assert.strictEqual(err.code, 'KRYP-501');
+      return true;
+    }
+  );
+
+  assert.throws(
+    () => {
+      dispatcher.applyJsonPatch(baseDoc, [
+        { op: 'replace', path: '/constructor/prototype/polluted', value: 'yes' },
+      ]);
+    },
+    (err) => {
+      assert.strictEqual(err.code, 'KRYP-501');
+      return true;
+    }
+  );
+
+  // Ensure Object prototype was NOT polluted
+  assert.strictEqual(({})['polluted'], undefined);
+});
+

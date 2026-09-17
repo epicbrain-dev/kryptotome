@@ -4,7 +4,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFile, execSync } from 'node:child_process';
+import { execFile, execFileSync, execSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -281,7 +281,7 @@ test('Headless Browser: kryptotome-wasm WebAssembly testbed runs in browser runt
             print('WEBKIT_JSC_WASM_COMPILED_SUCCESSFULLY');
           `;
 
-          const jscOutput = execSync(`"${browser.path}" -e "${jscScript.replace(/"/g, '\\"')}"`, {
+          const jscOutput = execFileSync(browser.path, ['-e', jscScript], {
             encoding: 'utf8',
             timeout: 10000,
           });

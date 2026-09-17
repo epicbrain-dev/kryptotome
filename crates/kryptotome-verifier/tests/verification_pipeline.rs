@@ -38,9 +38,10 @@ fn test_groth16_verification_pipeline_success() {
     store.insert_credential(cred);
 
     let keyring = Keyring::generate();
+    let single_nonce = format!("single-use-nonce-{}", rand::random::<u64>());
     let challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "single-use-nonce-12345".to_string(),
+        single_nonce,
         300,
     );
 
@@ -84,9 +85,10 @@ fn test_groth16_bundle_verification_pipeline() {
     store.insert_credential(cred);
 
     let keyring = Keyring::generate();
+    let bundle_nonce = format!("nonce-bundle-{}", rand::random::<u64>());
     let challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "nonce-bundle-67890".to_string(),
+        bundle_nonce,
         300,
     );
 
@@ -125,9 +127,10 @@ fn test_verification_fails_on_expired_challenge() {
     store.insert_credential(cred);
 
     let keyring = Keyring::generate();
+    let expired_nonce = format!("nonce-expired-{}", rand::random::<u64>());
     let valid_challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "nonce-expired-test".to_string(),
+        expired_nonce.clone(),
         300,
     );
     let zk_proof = store
@@ -136,7 +139,7 @@ fn test_verification_fails_on_expired_challenge() {
 
     // Construct expired challenge
     let expired_challenge = ChallengeNonce {
-        nonce: "nonce-expired-test".to_string(),
+        nonce: expired_nonce,
         package_id: package_id.to_string(),
         timestamp: Utc::now() - chrono::Duration::seconds(600),
         expires_at: Utc::now() - chrono::Duration::seconds(10),
@@ -168,9 +171,10 @@ fn test_verification_fails_on_package_mismatch() {
     store.insert_credential(cred);
 
     let keyring = Keyring::generate();
+    let mismatch_nonce = format!("nonce-mismatch-{}", rand::random::<u64>());
     let challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "nonce-mismatch-test".to_string(),
+        mismatch_nonce.clone(),
         300,
     );
     let zk_proof = store
@@ -179,7 +183,7 @@ fn test_verification_fails_on_package_mismatch() {
 
     let mismatched_challenge = ChallengeNonce::new(
         "other-publisher/other-package".to_string(),
-        "nonce-mismatch-test".to_string(),
+        mismatch_nonce,
         300,
     );
 
@@ -209,9 +213,10 @@ fn test_verification_fails_on_tampered_proof_bytes() {
     store.insert_credential(cred);
 
     let keyring = Keyring::generate();
+    let tamper_nonce = format!("nonce-tamper-{}", rand::random::<u64>());
     let challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "nonce-tamper-test".to_string(),
+        tamper_nonce,
         300,
     );
     let mut zk_proof = store
@@ -314,9 +319,10 @@ fn test_verification_latency_target_sub_10ms() {
     store.insert_credential(cred);
 
     let keyring = Keyring::generate();
+    let bench_nonce = format!("nonce-bench-{}", rand::random::<u64>());
     let challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "nonce-bench-999".to_string(),
+        bench_nonce,
         300,
     );
 

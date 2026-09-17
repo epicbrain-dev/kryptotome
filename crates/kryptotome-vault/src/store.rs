@@ -855,10 +855,12 @@ mod tests {
 
         // 4. Proof creation with revocation
         let keyring = Keyring::generate();
+        let nonce_revoked = format!("nonce-revoked-{}", rand::random::<u64>());
+        let nonce_active = format!("nonce-active-{}", rand::random::<u64>());
         let challenge_revoked =
-            ChallengeNonce::new("pkg.revoked-game".to_string(), "nonce-revoked-123".to_string(), 60);
+            ChallengeNonce::new("pkg.revoked-game".to_string(), nonce_revoked, 60);
         let challenge_active =
-            ChallengeNonce::new("pkg.active-game".to_string(), "nonce-active-456".to_string(), 60);
+            ChallengeNonce::new("pkg.active-game".to_string(), nonce_active, 60);
 
         let proof_err = store
             .create_proof_for_challenge_with_revocation(&keyring, &challenge_revoked, &rev_list)
@@ -887,9 +889,10 @@ mod tests {
         store.insert_credential(cred.clone());
 
         let keyring = Keyring::generate();
+        let nonce_zkp = format!("nonce-zkp-{}", rand::random::<u64>());
         let challenge = ChallengeNonce::new(
             "pkg.elder-scrolls-skyrim".to_string(),
-            "nonce-zkp-12345678".to_string(),
+            nonce_zkp,
             120,
         );
 
@@ -925,8 +928,9 @@ mod tests {
         assert!(is_valid, "Generated Groth16 proof must verify against circuit VK");
 
         // Tamper test: tampered nonce fails
+        let tampered_nonce = format!("tampered-nonce-{}", rand::random::<u64>());
         let tampered_inputs = vec![
-            kryptotome_core::string_to_scalar("tampered-nonce"),
+            kryptotome_core::string_to_scalar(&tampered_nonce),
             public_inputs[1],
             public_inputs[2],
             public_inputs[3],
@@ -944,9 +948,10 @@ mod tests {
         store.insert_credential(cred);
 
         let keyring = Keyring::generate();
+        let nonce_bundle = format!("nonce-bundle-{}", rand::random::<u64>());
         let challenge = ChallengeNonce::new(
             "pkg.cyberpunk".to_string(),
-            "nonce-bundle-999".to_string(),
+            nonce_bundle,
             120,
         );
 
@@ -957,7 +962,7 @@ mod tests {
         assert_eq!(bundle.curve, "BLS12-381");
         assert_eq!(bundle.proof_system, "groth16");
         assert_eq!(bundle.package_id, "pkg.cyberpunk");
-        assert_eq!(bundle.challenge_nonce, "nonce-bundle-999");
+        assert_eq!(bundle.challenge_nonce, challenge.nonce);
 
         // Self-contained bundle verification
         let (_, vk) = kryptotome_core::get_or_init_entitlement_setup();

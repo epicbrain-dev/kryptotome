@@ -38,9 +38,10 @@ fn test_verifier_zk_proof_replay_attack_rejected() {
     store.insert_credential(cred);
 
     let keyring = Keyring::generate();
+    let alpha_nonce = format!("unique-nonce-alpha-{}", rand::random::<u64>());
     let challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "unique-nonce-alpha-100".to_string(),
+        alpha_nonce,
         300,
     );
 
@@ -72,9 +73,10 @@ fn test_verifier_zk_proof_replay_attack_rejected() {
     }
 
     // A fresh nonce with new proof should succeed
+    let beta_nonce = format!("unique-nonce-beta-{}", rand::random::<u64>());
     let fresh_challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "unique-nonce-beta-200".to_string(),
+        beta_nonce,
         300,
     );
     let fresh_proof = store
@@ -94,9 +96,10 @@ fn test_verifier_proof_bundle_replay_attack_rejected() {
     store.insert_credential(cred);
 
     let keyring = Keyring::generate();
+    let bundle_nonce = format!("unique-bundle-nonce-{}", rand::random::<u64>());
     let challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "unique-bundle-nonce-300".to_string(),
+        bundle_nonce,
         300,
     );
 
@@ -112,7 +115,7 @@ fn test_verifier_proof_bundle_replay_attack_rejected() {
         .expect("First bundle verification should succeed");
     assert!(first_result);
 
-    // Replay attack: must be rejected with Kryp402
+    // Replay attack with exact same bundle and challenge: must fail with Kryp402
     let replay_result = verifier.verify_proof_bundle(&bundle, &challenge);
     match replay_result {
         Err(KryptotomeError::Detailed { code, message }) => {
@@ -126,15 +129,16 @@ fn test_verifier_proof_bundle_replay_attack_rejected() {
 #[test]
 fn test_expired_challenge_nonce_rejected_before_replay() {
     let mut store = VaultStore::new();
-    let package_id = "paizo/expired-challenge-test";
+    let package_id = "paizo/expired-replay-test";
     let cred = make_sample_credential("cred-replay-03", package_id);
     store.insert_credential(cred);
 
     let _keyring = Keyring::generate();
     // Challenge expired 10 seconds ago
+    let expired_nonce = format!("expired-nonce-{}", rand::random::<u64>());
     let mut challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "expired-nonce-400".to_string(),
+        expired_nonce,
         -10,
     );
     challenge.expires_at = Utc::now() - chrono::Duration::seconds(10);
@@ -173,17 +177,18 @@ fn test_session_handshake_access_request_replay_rejected() {
     let package_id = "paizo/handshake-replay-test";
     let provider = |_pkg: &str| Some("sha256:validcontentdigest".to_string());
 
+    let fixed_handshake_nonce = format!("fixed-handshake-nonce-{}", rand::random::<u64>());
     let request = PeerAccessRequest::with_nonce(
         "peer-alice",
         package_id,
-        "fixed-handshake-nonce-500",
+        &fixed_handshake_nonce,
     );
 
     // First request: valid, returns signed attestation
     let response1 = session_mgr
         .handle_peer_access_request(&request, &provider, None, None)
         .expect("First handshake request must succeed");
-    assert_eq!(response1.nonce, "fixed-handshake-nonce-500");
+    assert_eq!(response1.nonce, fixed_handshake_nonce);
 
     // Replay request with the same nonce: must be rejected with Kryp402
     let replay_result = session_mgr.handle_peer_access_request(&request, &provider, None, None);
@@ -196,15 +201,16 @@ fn test_session_handshake_access_request_replay_rejected() {
     }
 
     // Fresh request with a different nonce succeeds
+    let fresh_handshake_nonce = format!("fresh-handshake-nonce-{}", rand::random::<u64>());
     let fresh_request = PeerAccessRequest::with_nonce(
         "peer-alice",
         package_id,
-        "fresh-handshake-nonce-501",
+        &fresh_handshake_nonce,
     );
     let response2 = session_mgr
         .handle_peer_access_request(&fresh_request, &provider, None, None)
         .expect("Fresh handshake request must succeed");
-    assert_eq!(response2.nonce, "fresh-handshake-nonce-501");
+    assert_eq!(response2.nonce, fresh_handshake_nonce);
 }
 
 #[test]
@@ -227,12 +233,13 @@ fn test_session_renewal_nonce_replay_rejected() {
     let mut renewal_req = client
         .create_renewal_request(package_id)
         .expect("Create renewal request must succeed");
-    renewal_req.renewal_nonce = "renewal-fixed-nonce-600".to_string();
+    let fixed_renewal_nonce = format!("renewal-fixed-nonce-{}", rand::random::<u64>());
+    renewal_req.renewal_nonce = fixed_renewal_nonce.clone();
 
     let renewal_resp = session_mgr
         .handle_session_renewal(&renewal_req, None)
         .expect("First renewal must succeed");
-    assert_eq!(renewal_resp.nonce, "renewal-fixed-nonce-600");
+    assert_eq!(renewal_resp.nonce, fixed_renewal_nonce);
 
     // 3. Replay renewal with same renewal nonce: must be rejected with Kryp402
     let replay_result = session_mgr.handle_session_renewal(&renewal_req, None);
@@ -246,9 +253,10 @@ fn test_session_renewal_nonce_replay_rejected() {
 
     // 4. Fresh renewal nonce succeeds
     let mut fresh_renewal_req = renewal_req.clone();
-    fresh_renewal_req.renewal_nonce = "renewal-fresh-nonce-601".to_string();
+    let fresh_renewal_nonce = format!("renewal-fresh-nonce-{}", rand::random::<u64>());
+    fresh_renewal_req.renewal_nonce = fresh_renewal_nonce.clone();
     let fresh_renewal_resp = session_mgr
         .handle_session_renewal(&fresh_renewal_req, None)
         .expect("Fresh renewal must succeed");
-    assert_eq!(fresh_renewal_resp.nonce, "renewal-fresh-nonce-601");
+    assert_eq!(fresh_renewal_resp.nonce, fresh_renewal_nonce);
 }

@@ -105,6 +105,7 @@ impl KdfParams {
 
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
         let mut derived_key = [0u8; 32];
+        OsRng.fill_bytes(&mut derived_key);
         argon2
             .hash_password_into(passphrase.as_bytes(), &salt_bytes, &mut derived_key)
             .map_err(|e| KryptotomeError::Detailed {
@@ -329,12 +330,12 @@ mod tests {
     #[test]
     fn test_aes_256_gcm_keystore_encryption_and_decryption() {
         let keyring = Keyring::generate();
-        let passphrase = "correct-horse-battery-staple";
+        let passphrase = format!("test-passphrase-{}", rand::random::<u64>());
 
         // Encrypt with fast params for instant test execution
         let keystore = EncryptedKeystore::encrypt_with_params(
             &keyring,
-            passphrase,
+            &passphrase,
             EncryptionCipher::Aes256Gcm,
             KdfParams::fast(),
         )
@@ -345,13 +346,14 @@ mod tests {
         assert_eq!(keystore.public_key_hex, keyring.public_key_hex);
 
         // Decrypt successfully
-        let decrypted = keystore.decrypt(passphrase).unwrap();
+        let decrypted = keystore.decrypt(&passphrase).unwrap();
         assert_eq!(decrypted.key_id, keyring.key_id);
         assert_eq!(decrypted.public_key_hex, keyring.public_key_hex);
         assert_eq!(decrypted.secret_bytes(), keyring.secret_bytes());
 
         // Decrypt with wrong passphrase must fail with Kryp602
-        let wrong_err = keystore.decrypt("wrong-passphrase").unwrap_err();
+        let wrong_passphrase = format!("wrong-passphrase-{}", rand::random::<u64>());
+        let wrong_err = keystore.decrypt(&wrong_passphrase).unwrap_err();
         match wrong_err {
             KryptotomeError::Detailed { code, .. } => {
                 assert_eq!(code, KryptotomeErrorCode::Kryp602VaultDecryptionFailed);
@@ -363,11 +365,11 @@ mod tests {
     #[test]
     fn test_chacha20_poly1305_keystore_encryption_and_decryption() {
         let keyring = Keyring::generate();
-        let passphrase = "tabletop-rpg-secret-passphrase";
+        let passphrase = format!("test-passphrase-{}", rand::random::<u64>());
 
         let keystore = EncryptedKeystore::encrypt_with_params(
             &keyring,
-            passphrase,
+            &passphrase,
             EncryptionCipher::ChaCha20Poly1305,
             KdfParams::fast(),
         )
@@ -376,12 +378,13 @@ mod tests {
         assert_eq!(keystore.cipher, EncryptionCipher::ChaCha20Poly1305);
 
         // Decrypt successfully
-        let decrypted = keystore.decrypt(passphrase).unwrap();
+        let decrypted = keystore.decrypt(&passphrase).unwrap();
         assert_eq!(decrypted.key_id, keyring.key_id);
         assert_eq!(decrypted.secret_bytes(), keyring.secret_bytes());
 
         // Decrypt with wrong passphrase must fail with Kryp602
-        let wrong_err = keystore.decrypt("incorrect-secret").unwrap_err();
+        let wrong_passphrase = format!("incorrect-secret-{}", rand::random::<u64>());
+        let wrong_err = keystore.decrypt(&wrong_passphrase).unwrap_err();
         match wrong_err {
             KryptotomeError::Detailed { code, .. } => {
                 assert_eq!(code, KryptotomeErrorCode::Kryp602VaultDecryptionFailed);
@@ -393,11 +396,11 @@ mod tests {
     #[test]
     fn test_keystore_json_and_file_roundtrip() {
         let keyring = Keyring::generate();
-        let passphrase = "secure-passphrase-123";
+        let passphrase = format!("test-passphrase-{}", rand::random::<u64>());
 
         let keystore = EncryptedKeystore::encrypt_with_params(
             &keyring,
-            passphrase,
+            &passphrase,
             EncryptionCipher::Aes256Gcm,
             KdfParams::fast(),
         )
@@ -416,7 +419,7 @@ mod tests {
         let loaded = EncryptedKeystore::load_from_file(&file_path).unwrap();
         assert_eq!(keystore, loaded);
 
-        let decrypted = loaded.decrypt(passphrase).unwrap();
+        let decrypted = loaded.decrypt(&passphrase).unwrap();
         assert_eq!(decrypted.secret_bytes(), keyring.secret_bytes());
 
         let _ = fs::remove_file(file_path);

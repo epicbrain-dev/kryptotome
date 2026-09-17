@@ -227,7 +227,7 @@ fn test_end_to_end_entitlement_pipeline() {
 
     let tampered_challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "different-tampered-nonce".to_string(),
+        format!("tampered-nonce-{}", rand::random::<u64>()),
         300,
     );
     let tampered_res = verifier.verify_zk_proof(&vk, &tampered_challenge, &fresh_proof);

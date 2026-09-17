@@ -34,9 +34,10 @@ fn bench_zk_verification(c: &mut Criterion) {
     store.insert_credential(cred);
 
     let keyring = Keyring::generate();
+    let challenge_nonce = format!("bench-single-use-nonce-{}", rand::random::<u64>());
     let challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "bench-single-use-nonce-12345".to_string(),
+        challenge_nonce,
         300,
     );
 
@@ -68,9 +69,10 @@ fn bench_zk_proving(c: &mut Criterion) {
     store.insert_credential(cred);
 
     let keyring = Keyring::generate();
+    let proving_nonce = format!("bench-proving-nonce-{}", rand::random::<u64>());
     let challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "bench-proving-nonce-999".to_string(),
+        proving_nonce,
         300,
     );
 

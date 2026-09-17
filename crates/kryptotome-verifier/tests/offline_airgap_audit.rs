@@ -47,9 +47,10 @@ fn test_rust_offline_airgap_proof_verification_and_table_sharing() {
     let mut verifier = EmbeddedVerifier::new();
     assert!(!verifier.is_package_unlocked(package_id));
 
+    let airgap_nonce = format!("offline-nonce-airgap-{}", rand::random::<u64>());
     let challenge = ChallengeNonce::new(
         package_id.to_string(),
-        "offline-nonce-airgap-12345".to_string(),
+        airgap_nonce,
         300,
     );
 
@@ -60,7 +61,7 @@ fn test_rust_offline_airgap_proof_verification_and_table_sharing() {
 
     assert_eq!(zk_proof.proof_bytes.len(), 192);
     assert_eq!(zk_proof.public_inputs.package_id, package_id);
-    assert_eq!(zk_proof.public_inputs.challenge_nonce, "offline-nonce-airgap-12345");
+    assert_eq!(zk_proof.public_inputs.challenge_nonce, challenge.nonce);
 
     // 6. Air-Gapped Embedded Proof Verification (<10ms)
     let vk = VerificationKey {

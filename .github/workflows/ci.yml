@@ -10,6 +10,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
+
 jobs:
   rust-tests:
     name: Rust Workspace Tests (${{ matrix.os }})
