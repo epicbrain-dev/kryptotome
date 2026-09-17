@@ -1,0 +1,9 @@
+name: "Kryptotome CodeQL Configuration"
+
+# Exclude non-production test suites and fuzz corpora from deep AST traversal
+paths-ignore:
+  - '**/tests/**'
+  - '**/test/**'
+  - 'fuzz/**'
+  - 'target/**'
+  - 'node_modules/**'
