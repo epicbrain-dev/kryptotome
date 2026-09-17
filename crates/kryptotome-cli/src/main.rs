@@ -600,7 +600,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("==================================================");
             println!("  Kryptotome Air-Gapped Table Beacon Active");
             println!("==================================================");
-            println!("Session ID: {}", state.session_id);
+            println!("Session ID: {}", mask_sensitive_id(&state.session_id));
             println!("Table Name: {}", state.table_name);
             println!("Bind Address: {}", state.bind_address);
             println!("mDNS Service: {}", state.advertised_service);
@@ -634,6 +634,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn mask_sensitive_id(value: &str) -> String {
+    let chars: Vec<char> = value.chars().collect();
+    if chars.len() <= 8 {
+        return "[redacted]".to_string();
+    }
+
+    let prefix: String = chars.iter().take(4).collect();
+    let suffix: String = chars
+        .iter()
+        .rev()
+        .take(4)
+        .cloned()
+        .collect::<Vec<char>>()
+        .into_iter()
+        .rev()
+        .collect();
+
+    format!("{prefix}...{suffix}")
 }
 
 mod hex {
