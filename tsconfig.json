@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/sdk" },
+    { "path": "packages/bridge" },
+    { "path": "packages/vtt-adapter" }
+  ]
+}

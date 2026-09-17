@@ -539,6 +539,14 @@ pub fn deserialize_public_inputs_compressed(bytes: &[u8]) -> Result<Vec<ScalarFi
         }
     })? as usize;
 
+    // Reject unbounded allocations: each scalar is 32 bytes, maximum circuit input count is bounded
+    if len > cursor.len() / 32 || len > 256 {
+        return Err(KryptotomeError::Detailed {
+            code: KryptotomeErrorCode::Kryp303MalformedProofEncoding,
+            message: format!("Declared public inputs length {} exceeds input payload bounds", len),
+        });
+    }
+
     let mut inputs = Vec::with_capacity(len);
     for _ in 0..len {
         let scalar = ScalarField::deserialize_compressed(&mut cursor).map_err(|e| {
