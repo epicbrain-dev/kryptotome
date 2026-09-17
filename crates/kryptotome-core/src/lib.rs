@@ -19,16 +19,14 @@ pub use circuit::{
     generate_entitlement_setup, get_or_init_entitlement_prepared_vk, get_or_init_entitlement_setup,
     prepare_verifying_key, proof_from_urn, proof_to_urn, prove_entitlement_for_credential,
     serialize_pk_compressed, serialize_proof_base64, serialize_proof_base64_url,
-    serialize_proof_compressed, serialize_public_inputs_base64,
-    serialize_public_inputs_compressed, serialize_vk_base64, serialize_vk_compressed,
-    string_to_scalar, verify_entitlement_proof, verify_entitlement_proof_prepared,
-    EntitlementCircuit, EntitlementProofBundle, Groth16PreparedVerifyingKey, Groth16Proof,
-    Groth16ProvingKey, Groth16VerifyingKey, BUNDLE_MAGIC,
+    serialize_proof_compressed, serialize_public_inputs_base64, serialize_public_inputs_compressed,
+    serialize_vk_base64, serialize_vk_compressed, string_to_scalar, verify_entitlement_proof,
+    verify_entitlement_proof_prepared, EntitlementCircuit, EntitlementProofBundle,
+    Groth16PreparedVerifyingKey, Groth16Proof, Groth16ProvingKey, Groth16VerifyingKey,
+    BUNDLE_MAGIC,
 };
 
-pub use commitment::{
-    scalar_from_bytes, PedersenCommitment, PedersenCommitmentScheme,
-};
+pub use commitment::{scalar_from_bytes, PedersenCommitment, PedersenCommitmentScheme};
 
 pub use curve::{
     deserialize_g1_compressed, deserialize_g2_compressed, evaluate_multi_pairing, g1_generator,
@@ -38,15 +36,12 @@ pub use curve::{
     ProductionPairingEngine, ScalarField, TargetField,
 };
 
-pub use credential::{
-    CredentialSubject, Entitlement, Issuer, KryptotomeCredential, ProofData,
-};
+pub use credential::{CredentialSubject, Entitlement, Issuer, KryptotomeCredential, ProofData};
 pub use digest::{
     compute_directory_digest, compute_directory_digest_blake3,
-    compute_directory_digest_with_algorithm, compute_file_digest,
-    compute_file_digest_blake3, compute_file_digest_blake3_with_progress,
-    compute_file_digest_with_algorithm, compute_file_digest_with_progress,
-    ContentDigest, DigestAlgorithm,
+    compute_directory_digest_with_algorithm, compute_file_digest, compute_file_digest_blake3,
+    compute_file_digest_blake3_with_progress, compute_file_digest_with_algorithm,
+    compute_file_digest_with_progress, ContentDigest, DigestAlgorithm,
 };
 pub use error::{KryptotomeError, Result};
 pub use zkp::{ChallengeNonce, ProofInputs, VerificationKey, ZkProof};

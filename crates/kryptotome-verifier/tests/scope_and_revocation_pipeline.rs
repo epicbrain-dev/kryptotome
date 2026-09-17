@@ -1,7 +1,5 @@
 use kryptotome_core::error::{KryptotomeError, KryptotomeErrorCode};
-use kryptotome_verifier::{
-    PeerSessionClient, ScopePolicy, SessionManager,
-};
+use kryptotome_verifier::{PeerSessionClient, ScopePolicy, SessionManager};
 
 #[test]
 fn test_dynamic_scope_limiting_pipeline() {
@@ -9,13 +7,25 @@ fn test_dynamic_scope_limiting_pipeline() {
     let mut policy = ScopePolicy::new_default();
 
     // GM explicitly configures allowed and restricted scopes
-    policy.allowed_scopes = vec!["spells".to_string(), "classes".to_string(), "feats".to_string()];
-    policy.restricted_scopes = vec!["gm_notes".to_string(), "monsters".to_string(), "adventures".to_string()];
+    policy.allowed_scopes = vec![
+        "spells".to_string(),
+        "classes".to_string(),
+        "feats".to_string(),
+    ];
+    policy.restricted_scopes = vec![
+        "gm_notes".to_string(),
+        "monsters".to_string(),
+        "adventures".to_string(),
+    ];
 
     // Assistant GM peer override
     policy.set_peer_override(
         "peer:assistant-gm",
-        vec!["spells".to_string(), "classes".to_string(), "monsters".to_string()],
+        vec![
+            "spells".to_string(),
+            "classes".to_string(),
+            "monsters".to_string(),
+        ],
     );
 
     host.set_scope_policy(policy);
@@ -32,12 +42,19 @@ fn test_dynamic_scope_limiting_pipeline() {
         .handle_peer_access_request(
             &player_req,
             &store,
-            Some(vec!["spells".to_string(), "classes".to_string(), "monsters".to_string(), "gm_notes".to_string()]),
+            Some(vec![
+                "spells".to_string(),
+                "classes".to_string(),
+                "monsters".to_string(),
+                "gm_notes".to_string(),
+            ]),
             Some(240),
         )
         .unwrap();
 
-    let player_session = player.process_handshake_response(&player_resp, None).unwrap();
+    let player_session = player
+        .process_handshake_response(&player_resp, None)
+        .unwrap();
 
     // Verify player only got spells and classes; monsters and gm_notes were shielded
     assert!(player_session.allows_scope("spells"));
@@ -47,10 +64,14 @@ fn test_dynamic_scope_limiting_pipeline() {
 
     // Verify asset gatekeeping
     assert!(player_session.allows_asset_path("spells/heal.json"));
-    assert!(player_session.check_asset_access("spells/heal.json").is_ok());
+    assert!(player_session
+        .check_asset_access("spells/heal.json")
+        .is_ok());
 
     assert!(!player_session.allows_asset_path("monsters/red_dragon.json"));
-    let err = player_session.check_asset_access("monsters/red_dragon.json").unwrap_err();
+    let err = player_session
+        .check_asset_access("monsters/red_dragon.json")
+        .unwrap_err();
     match err {
         KryptotomeError::Detailed { code, .. } => {
             assert_eq!(code, KryptotomeErrorCode::Kryp703PeerUnauthorized);
@@ -59,7 +80,9 @@ fn test_dynamic_scope_limiting_pipeline() {
     }
 
     assert!(!player_session.allows_asset_path("gm_notes/campaign_secrets.md"));
-    assert!(player_session.check_asset_access("gm_notes/campaign_secrets.md").is_err());
+    assert!(player_session
+        .check_asset_access("gm_notes/campaign_secrets.md")
+        .is_err());
 
     // 2. Assistant GM connects: override allows them monsters
     let agm_req = assistant_gm.create_access_request(package_id);
@@ -67,10 +90,14 @@ fn test_dynamic_scope_limiting_pipeline() {
         .handle_peer_access_request(&agm_req, &store, None, Some(240))
         .unwrap();
 
-    let agm_session = assistant_gm.process_handshake_response(&agm_resp, None).unwrap();
+    let agm_session = assistant_gm
+        .process_handshake_response(&agm_resp, None)
+        .unwrap();
     assert!(agm_session.allows_scope("monsters"));
     assert!(agm_session.allows_asset_path("monsters/red_dragon.json"));
-    assert!(agm_session.check_asset_access("monsters/red_dragon.json").is_ok());
+    assert!(agm_session
+        .check_asset_access("monsters/red_dragon.json")
+        .is_ok());
     // But assistant GM still lacks gm_notes
     assert!(!agm_session.allows_scope("gm_notes"));
 }
@@ -90,7 +117,8 @@ fn test_session_renewal_and_revocation_pipeline() {
         .handle_peer_access_request(&req, &store, Some(vec!["spells".to_string()]), Some(60))
         .unwrap();
 
-    peer.process_handshake_response(&resp, Some(&host_pubkey)).unwrap();
+    peer.process_handshake_response(&resp, Some(&host_pubkey))
+        .unwrap();
     assert!(peer.is_package_mounted(package_id));
 
     let initial_session = peer.get_mounted_session(package_id).unwrap();
@@ -151,8 +179,12 @@ fn test_session_renewal_and_revocation_pipeline() {
     // 8. Clean disconnect and purge
     let mut another_peer = PeerSessionClient::new("peer:player:cleric");
     let req2 = another_peer.create_access_request("paizo/pathfinder-core");
-    let resp2 = host.handle_peer_access_request(&req2, &store, None, None).unwrap();
-    another_peer.process_handshake_response(&resp2, None).unwrap();
+    let resp2 = host
+        .handle_peer_access_request(&req2, &store, None, None)
+        .unwrap();
+    another_peer
+        .process_handshake_response(&resp2, None)
+        .unwrap();
     assert!(another_peer.is_package_mounted("paizo/pathfinder-core"));
 
     let purged_on_disconnect = another_peer.disconnect_and_purge();

@@ -101,12 +101,13 @@ pub fn execute_batch_sign<P: AsRef<Path>>(
             .license_url
             .clone()
             .unwrap_or_else(|| license_enum.canonical_url().to_string());
-        let attribution = pkg.license_attribution.clone().unwrap_or_else(|| {
-            match license_enum {
+        let attribution = pkg
+            .license_attribution
+            .clone()
+            .unwrap_or_else(|| match license_enum {
                 OpenGameLicenseType::Cc0_1_0 => "".to_string(),
                 _ => format!("Published by {}", spec.publisher_name),
-            }
-        });
+            });
 
         let license = PackageLicense {
             r#type: license_enum.as_str().to_string(),
@@ -143,7 +144,8 @@ pub fn execute_batch_sign<P: AsRef<Path>>(
         std::fs::write(&manifest_dest, manifest_json)?;
 
         // 3. Bundle into .ktome archive
-        let bundle_report: BundleReport = build_ktome_archive(&manifest, &pkg.dir, &bundle_dest, false)?;
+        let bundle_report: BundleReport =
+            build_ktome_archive(&manifest, &pkg.dir, &bundle_dest, false)?;
 
         results.push(BatchPackageResult {
             package_id: pkg.package_id.clone(),

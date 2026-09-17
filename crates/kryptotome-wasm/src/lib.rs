@@ -17,6 +17,12 @@ pub struct WasmVerifier {
     inner: EmbeddedVerifier,
 }
 
+impl Default for WasmVerifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[wasm_bindgen]
 impl WasmVerifier {
     #[wasm_bindgen(constructor)]
@@ -88,8 +94,13 @@ impl WasmVerifier {
 
     /// Invalidates entitlement if the current content digest has changed
     #[wasm_bindgen(js_name = invalidateIfDigestMismatch)]
-    pub fn invalidate_if_digest_mismatch(&mut self, package_id: &str, current_digest: &str) -> bool {
-        self.inner.invalidate_if_digest_mismatch(package_id, current_digest)
+    pub fn invalidate_if_digest_mismatch(
+        &mut self,
+        package_id: &str,
+        current_digest: &str,
+    ) -> bool {
+        self.inner
+            .invalidate_if_digest_mismatch(package_id, current_digest)
     }
 
     /// Exits the current active game session and purges all unlocked compendiums
@@ -200,8 +211,9 @@ impl WasmSessionManager {
         renewal_request_json: &str,
         duration_minutes: Option<i32>,
     ) -> Result<String, JsValue> {
-        let request: kryptotome_verifier::PeerSessionRenewalRequest = serde_json::from_str(renewal_request_json)
-            .map_err(|e| JsValue::from_str(&format!("Invalid renewal request JSON: {}", e)))?;
+        let request: kryptotome_verifier::PeerSessionRenewalRequest =
+            serde_json::from_str(renewal_request_json)
+                .map_err(|e| JsValue::from_str(&format!("Invalid renewal request JSON: {}", e)))?;
 
         let duration = duration_minutes.map(|d| d as i64);
         let response = self
@@ -221,11 +233,9 @@ impl WasmSessionManager {
         package_id: Option<String>,
         reason: &str,
     ) -> Result<String, JsValue> {
-        let notice = self.inner.revoke_peer(
-            recipient_peer_id,
-            package_id.as_deref(),
-            reason,
-        );
+        let notice = self
+            .inner
+            .revoke_peer(recipient_peer_id, package_id.as_deref(), reason);
         serde_json::to_string(&notice)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
@@ -343,8 +353,9 @@ impl WasmPeerSessionClient {
         notice_json: &str,
         expected_host_pubkey_hex: Option<String>,
     ) -> Result<usize, JsValue> {
-        let notice: kryptotome_verifier::SessionRevocationNotice = serde_json::from_str(notice_json)
-            .map_err(|e| JsValue::from_str(&format!("Invalid notice JSON: {}", e)))?;
+        let notice: kryptotome_verifier::SessionRevocationNotice =
+            serde_json::from_str(notice_json)
+                .map_err(|e| JsValue::from_str(&format!("Invalid notice JSON: {}", e)))?;
 
         self.inner
             .process_revocation_notice(&notice, expected_host_pubkey_hex.as_deref())
@@ -368,7 +379,7 @@ impl WasmPeerSessionClient {
     pub fn allows_scope(&self, package_id: &str, scope: &str) -> bool {
         self.inner
             .get_mounted_session(package_id)
-            .map_or(false, |s| s.allows_scope(scope))
+            .is_some_and(|s| s.allows_scope(scope))
     }
 
     /// Checks if a mounted package allows access to a specific asset path
@@ -376,16 +387,15 @@ impl WasmPeerSessionClient {
     pub fn allows_asset_path(&self, package_id: &str, asset_path: &str) -> bool {
         self.inner
             .get_mounted_session(package_id)
-            .map_or(false, |s| s.allows_asset_path(asset_path))
+            .is_some_and(|s| s.allows_asset_path(asset_path))
     }
 
     /// Verifies access to an asset path or returns error
     #[wasm_bindgen(js_name = checkAssetAccess)]
     pub fn check_asset_access(&self, package_id: &str, asset_path: &str) -> Result<bool, JsValue> {
-        let session = self
-            .inner
-            .get_mounted_session(package_id)
-            .ok_or_else(|| JsValue::from_str(&format!("Package '{}' is not mounted", package_id)))?;
+        let session = self.inner.get_mounted_session(package_id).ok_or_else(|| {
+            JsValue::from_str(&format!("Package '{}' is not mounted", package_id))
+        })?;
 
         session
             .check_asset_access(asset_path)
@@ -405,4 +415,3 @@ impl WasmPeerSessionClient {
         self.inner.unmount_all()
     }
 }
-

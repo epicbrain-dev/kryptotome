@@ -1,7 +1,7 @@
 use crate::error::{KryptotomeError, KryptotomeErrorCode, Result};
 use ark_bls12_381::{Bls12_381, Fq, Fq12, Fr, G1Affine, G2Affine};
-pub use ark_ec::{AffineRepr, CurveGroup};
 use ark_ec::pairing::Pairing;
+pub use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{One, UniformRand};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use rand::rngs::OsRng;
@@ -68,7 +68,10 @@ impl FromStr for CurveSuite {
             "BN254" | "ALT-BN128" => Ok(Self::Bn254),
             _ => Err(KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
-                message: format!("Unsupported curve suite: '{}'. Expected 'BLS12-381' or 'BN254'", s),
+                message: format!(
+                    "Unsupported curve suite: '{}'. Expected 'BLS12-381' or 'BN254'",
+                    s
+                ),
             }),
         }
     }
@@ -265,7 +268,10 @@ mod tests {
         assert_eq!(bls.security_bits(), 128);
         assert_eq!(bls.g1_compressed_size_bytes(), 48);
         assert_eq!(bls.g2_compressed_size_bytes(), 96);
-        assert_eq!(CurveSuite::from_str("BLS12-381").unwrap(), CurveSuite::Bls12_381);
+        assert_eq!(
+            CurveSuite::from_str("BLS12-381").unwrap(),
+            CurveSuite::Bls12_381
+        );
     }
 
     #[test]
@@ -349,7 +355,10 @@ mod tests {
 
         // Tamper with p2
         let p2_bad = (g1 * random_scalar()).into_affine();
-        assert!(!verify_multi_pairing_identity(&[(&p1, &q1), (&p2_bad, &q2)]));
+        assert!(!verify_multi_pairing_identity(&[
+            (&p1, &q1),
+            (&p2_bad, &q2)
+        ]));
     }
 
     #[test]
@@ -381,19 +390,37 @@ mod tests {
         let elapsed = start.elapsed();
         println!("KZG / Plonk opening verification latency: {:?}", elapsed);
 
-        assert!(is_valid, "Valid KZG polynomial commitment opening must verify");
+        assert!(
+            is_valid,
+            "Valid KZG polynomial commitment opening must verify"
+        );
 
         if !cfg!(debug_assertions) {
-            assert!(elapsed.as_millis() < 10, "KZG verification must be < 10ms in release");
+            assert!(
+                elapsed.as_millis() < 10,
+                "KZG verification must be < 10ms in release"
+            );
         }
 
         // Tampered evaluation value y
         let y_tampered = y + random_scalar();
-        assert!(!verify_kzg_opening(&commitment, &z, &y_tampered, &proof_w, &srs_g2_x));
+        assert!(!verify_kzg_opening(
+            &commitment,
+            &z,
+            &y_tampered,
+            &proof_w,
+            &srs_g2_x
+        ));
 
         // Tampered proof W
         let proof_w_tampered = (g1 * random_scalar()).into_affine();
-        assert!(!verify_kzg_opening(&commitment, &z, &y, &proof_w_tampered, &srs_g2_x));
+        assert!(!verify_kzg_opening(
+            &commitment,
+            &z,
+            &y,
+            &proof_w_tampered,
+            &srs_g2_x
+        ));
     }
 
     #[test]
@@ -418,17 +445,29 @@ mod tests {
         let folded_commitments = (lhs - rhs_part).into_affine();
 
         let start = Instant::now();
-        let valid = verify_plonk_batch_opening(&w_z, &w_zw, &folded_commitments, &z, &omega, &u, &srs_g2_x);
+        let valid =
+            verify_plonk_batch_opening(&w_z, &w_zw, &folded_commitments, &z, &omega, &u, &srs_g2_x);
         let elapsed = start.elapsed();
         println!("Plonk batch opening verification latency: {:?}", elapsed);
 
         assert!(valid, "Valid Plonk batch opening must pass");
         if !cfg!(debug_assertions) {
-            assert!(elapsed.as_millis() < 10, "Plonk batch verification must be < 10ms in release");
+            assert!(
+                elapsed.as_millis() < 10,
+                "Plonk batch verification must be < 10ms in release"
+            );
         }
 
         // Tampered challenge
         let u_tampered = u + random_scalar();
-        assert!(!verify_plonk_batch_opening(&w_z, &w_zw, &folded_commitments, &z, &omega, &u_tampered, &srs_g2_x));
+        assert!(!verify_plonk_batch_opening(
+            &w_z,
+            &w_zw,
+            &folded_commitments,
+            &z,
+            &omega,
+            &u_tampered,
+            &srs_g2_x
+        ));
     }
 }

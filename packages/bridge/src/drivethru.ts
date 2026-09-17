@@ -22,6 +22,14 @@ export interface DriveThruCustomerProfile {
 }
 
 export interface DriveThruBridgeConfig {
+  /**
+   * Base API endpoint. Defaults to 'https://www.drivethrurpg.com/api/v1'.
+   *
+   * NOTE (Browser CORS): When instantiated in browser contexts (e.g. Foundry VTT client scripts
+   * or web tabletop extensions), direct browser requests to DriveThruRPG are blocked by CORS.
+   * In browser environments, point `baseUrl` to a local backend reverse proxy
+   * (e.g. '/api/dtrpg-proxy') or supply a `fetchFn` that routes through the server.
+   */
   baseUrl?: string;
   fetchFn?: typeof fetch;
   registry?: PublisherRegistry;

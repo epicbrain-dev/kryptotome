@@ -164,6 +164,7 @@ impl PublisherToolchain {
     }
 
     /// Ingests directory using specified scan options and explicit license metadata
+    #[allow(clippy::too_many_arguments)]
     pub fn build_and_sign_package_with_license<P: AsRef<Path>>(
         &self,
         package_id: &str,
@@ -202,7 +203,10 @@ impl PublisherToolchain {
         };
 
         // Sign the package root digest
-        let payload_to_sign = format!("{}:{}:{}", manifest.package_id, manifest.version, scan_result.root_digest);
+        let payload_to_sign = format!(
+            "{}:{}:{}",
+            manifest.package_id, manifest.version, scan_result.root_digest
+        );
         let signature = self.signing_key.sign(payload_to_sign.as_bytes());
 
         manifest.signature = Some(ManifestSignature {
@@ -219,17 +223,22 @@ pub fn verify_package_manifest(
     manifest: &PackageManifest,
     expected_pubkey_hex: Option<&str>,
 ) -> Result<ManifestVerificationReport> {
-    let signature_entry = manifest.signature.as_ref().ok_or_else(|| {
-        kryptotome_core::KryptotomeError::Detailed {
-            code: kryptotome_core::error::KryptotomeErrorCode::Kryp203CorruptedSignature,
-            message: "Manifest does not contain a cryptographic signature".to_string(),
-        }
-    })?;
+    let signature_entry =
+        manifest
+            .signature
+            .as_ref()
+            .ok_or_else(|| kryptotome_core::KryptotomeError::Detailed {
+                code: kryptotome_core::error::KryptotomeErrorCode::Kryp203CorruptedSignature,
+                message: "Manifest does not contain a cryptographic signature".to_string(),
+            })?;
 
     if signature_entry.algorithm != "Ed25519" {
         return Err(kryptotome_core::KryptotomeError::Detailed {
             code: kryptotome_core::error::KryptotomeErrorCode::Kryp203CorruptedSignature,
-            message: format!("Unsupported signature algorithm '{}', expected 'Ed25519'", signature_entry.algorithm),
+            message: format!(
+                "Unsupported signature algorithm '{}', expected 'Ed25519'",
+                signature_entry.algorithm
+            ),
         });
     }
 
@@ -252,17 +261,19 @@ pub fn verify_package_manifest(
         None => &manifest.publisher.public_key,
     };
 
-    let pubkey_bytes = hex_decode(pubkey_hex).map_err(|_| {
-        kryptotome_core::KryptotomeError::Detailed {
+    let pubkey_bytes =
+        hex_decode(pubkey_hex).map_err(|_| kryptotome_core::KryptotomeError::Detailed {
             code: kryptotome_core::error::KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
             message: format!("Invalid hex encoding in public key: '{}'", pubkey_hex),
-        }
-    })?;
+        })?;
 
     if pubkey_bytes.len() != 32 {
         return Err(kryptotome_core::KryptotomeError::Detailed {
             code: kryptotome_core::error::KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
-            message: format!("Expected 32-byte Ed25519 public key, got {} bytes", pubkey_bytes.len()),
+            message: format!(
+                "Expected 32-byte Ed25519 public key, got {} bytes",
+                pubkey_bytes.len()
+            ),
         });
     }
 
@@ -289,15 +300,16 @@ pub fn verify_package_manifest(
         }
     })?;
 
-    let payload_to_verify = format!("{}:{}:{}", manifest.package_id, manifest.version, manifest.root_digest);
+    let payload_to_verify = format!(
+        "{}:{}:{}",
+        manifest.package_id, manifest.version, manifest.root_digest
+    );
 
     verifying_key
         .verify(payload_to_verify.as_bytes(), &signature)
-        .map_err(|e| {
-            kryptotome_core::KryptotomeError::Detailed {
-                code: kryptotome_core::error::KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
-                message: format!("Ed25519 signature verification failed: {}", e),
-            }
+        .map_err(|e| kryptotome_core::KryptotomeError::Detailed {
+            code: kryptotome_core::error::KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
+            message: format!("Ed25519 signature verification failed: {}", e),
         })?;
 
     // Validate license metadata conforming to open gaming standards (ORC, CC-BY-4.0, CC0)
@@ -343,7 +355,11 @@ pub fn verify_package_directory<P: AsRef<Path>>(
     let mut matched_files = 0;
 
     for expected_file in &manifest.files {
-        match scan_result.files.iter().find(|f| f.path == expected_file.path) {
+        match scan_result
+            .files
+            .iter()
+            .find(|f| f.path == expected_file.path)
+        {
             Some(found) => {
                 if found.digest == expected_file.digest && found.size == expected_file.size {
                     matched_files += 1;
@@ -375,9 +391,10 @@ fn hex_encode(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
+#[allow(clippy::result_unit_err)]
 pub fn hex_decode(s: &str) -> std::result::Result<Vec<u8>, ()> {
     let clean = s.trim();
-    if clean.len() % 2 != 0 {
+    if !clean.len().is_multiple_of(2) {
         return Err(());
     }
     (0..clean.len())

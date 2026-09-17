@@ -4,8 +4,7 @@ use kryptotome_core::{
     circuit::{
         deserialize_pk_compressed, deserialize_proof_compressed,
         deserialize_public_inputs_compressed, deserialize_vk_compressed,
-        get_or_init_entitlement_setup, serialize_proof_compressed,
-        EntitlementProofBundle,
+        get_or_init_entitlement_setup, serialize_proof_compressed, EntitlementProofBundle,
     },
     zkp::{ProofInputs, ZkProof},
 };
@@ -120,7 +119,10 @@ fn test_fuzz_proof_deserialization_panic_freedom() {
         "Fuzz Proof Deserialization: tested {} inputs, safely rejected {} without panicking",
         iterations, rejected_count
     );
-    assert!(rejected_count > 900, "Hostile inputs must be rejected safely");
+    assert!(
+        rejected_count > 900,
+        "Hostile inputs must be rejected safely"
+    );
 }
 
 #[test]
@@ -170,7 +172,10 @@ fn test_fuzz_presentation_bundle_deserialization_panic_freedom() {
         "Fuzz Bundle Deserialization: tested {} inputs, safely rejected {} without panicking",
         iterations, rejected_count
     );
-    assert!(rejected_count > 500, "Corrupted inputs must be rejected safely without panics");
+    assert!(
+        rejected_count > 500,
+        "Corrupted inputs must be rejected safely without panics"
+    );
 }
 
 #[test]

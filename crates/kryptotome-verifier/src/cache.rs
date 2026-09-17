@@ -216,7 +216,11 @@ impl EntitlementCache {
     }
 
     /// Invalidates entitlement if the current content digest differs from the cached digest
-    pub fn invalidate_if_digest_mismatch(&mut self, package_id: &str, current_digest: &str) -> bool {
+    pub fn invalidate_if_digest_mismatch(
+        &mut self,
+        package_id: &str,
+        current_digest: &str,
+    ) -> bool {
         if let Some(entry) = self.entries.get(package_id) {
             if entry.content_digest != current_digest {
                 self.invalidate_package(package_id, InvalidationReason::DigestMismatch);
@@ -290,12 +294,7 @@ mod tests {
 
         // Expired entry (negative TTL)
         let expired_pkg = "paizo/starfinder-core";
-        cache.mark_verified_with_params(
-            expired_pkg,
-            digest,
-            Duration::seconds(-10),
-            None,
-        );
+        cache.mark_verified_with_params(expired_pkg, digest, Duration::seconds(-10), None);
 
         // is_unlocked should return false for expired entry
         assert!(!cache.is_unlocked(expired_pkg));

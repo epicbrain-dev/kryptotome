@@ -172,7 +172,27 @@ pub fn unpack_ktome_archive<P: AsRef<Path>, Q: AsRef<Path>>(
     let mut extracted_files = 0;
     for entry in archive.entries()? {
         let mut entry = entry?;
-        let rel_path = entry.path()?.to_path_buf();
+        let entry_path = entry.path()?;
+
+        // Security: Defend against Zip Slip / Path Traversal attacks
+        if entry_path.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir
+                    | std::path::Component::Prefix(_)
+                    | std::path::Component::RootDir
+            )
+        }) {
+            return Err(KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp106InvalidManifestSchema,
+                message: format!(
+                    "Path traversal attempt detected in .ktome archive: {:?}",
+                    entry_path
+                ),
+            });
+        }
+
+        let rel_path = entry_path.to_path_buf();
         let target_path = dest_dir.join(&rel_path);
 
         if let Some(parent) = target_path.parent() {

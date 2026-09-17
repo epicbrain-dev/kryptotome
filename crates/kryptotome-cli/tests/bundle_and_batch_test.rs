@@ -1,5 +1,7 @@
 use ed25519_dalek::SigningKey;
-use kryptotome_cli::batch::{auto_discover_batch_spec, execute_batch_sign, BatchPackageSpec, BatchSignSpec};
+use kryptotome_cli::batch::{
+    auto_discover_batch_spec, execute_batch_sign, BatchPackageSpec, BatchSignSpec,
+};
 use kryptotome_cli::bundle::{build_ktome_archive, inspect_ktome_archive, unpack_ktome_archive};
 use kryptotome_cli::publisher::{PackageLicense, PublisherToolchain};
 use kryptotome_cli::scanner::ScanOptions;
@@ -14,20 +16,27 @@ fn create_sample_module(base_dir: &std::path::Path, module_name: &str) -> PathBu
 
     std::fs::write(
         mod_dir.join("rules").join(format!("{}.json", module_name)),
-        format!("{{\"module\": \"{}\", \"version\": \"1.0.0\"}}", module_name).as_bytes(),
-    ).unwrap();
+        format!(
+            "{{\"module\": \"{}\", \"version\": \"1.0.0\"}}",
+            module_name
+        )
+        .as_bytes(),
+    )
+    .unwrap();
 
     std::fs::write(
         mod_dir.join("assets").join("icon.png"),
         b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01",
-    ).unwrap();
+    )
+    .unwrap();
 
     mod_dir
 }
 
 #[test]
 fn test_build_inspect_and_unpack_ktome_archive() {
-    let temp_root = std::env::temp_dir().join(format!("ktome_bundle_test_{}", rand::random::<u64>()));
+    let temp_root =
+        std::env::temp_dir().join(format!("ktome_bundle_test_{}", rand::random::<u64>()));
     std::fs::create_dir_all(&temp_root).unwrap();
 
     let source_dir = create_sample_module(&temp_root, "pf2e_spells");
@@ -38,15 +47,20 @@ fn test_build_inspect_and_unpack_ktome_archive() {
     let signing_key = SigningKey::generate(&mut csprng);
     let toolchain = PublisherToolchain::new(signing_key);
 
-    let manifest = toolchain.build_and_sign_package_with_license(
-        "paizo/spells",
-        "Pathfinder Spells Compendium",
-        "1.0.0",
-        "Paizo Inc.",
-        &source_dir,
-        ScanOptions { algorithm: DigestAlgorithm::Sha256, show_progress: false },
-        PackageLicense::new_orc("Paizo Inc."),
-    ).unwrap();
+    let manifest = toolchain
+        .build_and_sign_package_with_license(
+            "paizo/spells",
+            "Pathfinder Spells Compendium",
+            "1.0.0",
+            "Paizo Inc.",
+            &source_dir,
+            ScanOptions {
+                algorithm: DigestAlgorithm::Sha256,
+                show_progress: false,
+            },
+            PackageLicense::new_orc("Paizo Inc."),
+        )
+        .unwrap();
 
     // 1. Build .ktome archive
     let bundle_rep = build_ktome_archive(&manifest, &source_dir, &ktome_output, false).unwrap();
@@ -67,7 +81,8 @@ fn test_build_inspect_and_unpack_ktome_archive() {
     assert!(unpack_rep.directory_integrity.unwrap().is_valid);
 
     // Verify file content on disk
-    let extracted_json = std::fs::read_to_string(unpack_dest.join("rules").join("pf2e_spells.json")).unwrap();
+    let extracted_json =
+        std::fs::read_to_string(unpack_dest.join("rules").join("pf2e_spells.json")).unwrap();
     assert!(extracted_json.contains("pf2e_spells"));
 
     // Cleanup
@@ -76,7 +91,8 @@ fn test_build_inspect_and_unpack_ktome_archive() {
 
 #[test]
 fn test_batch_signing_spec_and_packaging() {
-    let temp_root = std::env::temp_dir().join(format!("ktome_batch_test_{}", rand::random::<u64>()));
+    let temp_root =
+        std::env::temp_dir().join(format!("ktome_batch_test_{}", rand::random::<u64>()));
     std::fs::create_dir_all(&temp_root).unwrap();
 
     let mod_a = create_sample_module(&temp_root, "bestiary_vol1");
@@ -134,7 +150,8 @@ fn test_batch_signing_spec_and_packaging() {
 
 #[test]
 fn test_auto_discover_batch_spec() {
-    let temp_root = std::env::temp_dir().join(format!("ktome_autobatch_test_{}", rand::random::<u64>()));
+    let temp_root =
+        std::env::temp_dir().join(format!("ktome_autobatch_test_{}", rand::random::<u64>()));
     std::fs::create_dir_all(&temp_root).unwrap();
 
     let _ = create_sample_module(&temp_root, "core_rules");
@@ -147,6 +164,69 @@ fn test_auto_discover_batch_spec() {
     let dist_dir = temp_root.join("auto_dist");
     let report = execute_batch_sign(spec, &dist_dir, None, false).unwrap();
     assert_eq!(report.total_packages, 2);
+
+    let _ = std::fs::remove_dir_all(temp_root);
+}
+
+#[test]
+fn test_malicious_archive_path_traversal_rejection() {
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use kryptotome_cli::bundle::unpack_ktome_archive;
+    use kryptotome_core::error::KryptotomeError;
+
+    let temp_root =
+        std::env::temp_dir().join(format!("ktome_traversal_test_{}", rand::random::<u64>()));
+    std::fs::create_dir_all(&temp_root).unwrap();
+
+    let malicious_ktome = temp_root.join("malicious.ktome");
+    let unpack_dest = temp_root.join("unpacked");
+
+    // Build an archive containing a path traversal payload in raw tar format
+    let payload = b"malicious content";
+    let mut header = tar::Header::new_gnu();
+    header.set_size(payload.len() as u64);
+    header.set_mode(0o644);
+    // Set raw filename in tar header
+    let raw = header.as_mut_bytes();
+    let name = b"../escape.txt\0";
+    raw[..name.len()].copy_from_slice(name);
+    header.set_cksum();
+
+    let mut raw_tar = Vec::new();
+    raw_tar.extend_from_slice(header.as_bytes());
+    raw_tar.extend_from_slice(payload);
+    let pad = 512 - (payload.len() % 512);
+    if pad < 512 {
+        raw_tar.extend(vec![0u8; pad]);
+    }
+    raw_tar.extend(vec![0u8; 1024]);
+
+    let file = std::fs::File::create(&malicious_ktome).unwrap();
+    let mut gz = GzEncoder::new(file, Compression::default());
+    use std::io::Write;
+    gz.write_all(&raw_tar).unwrap();
+    gz.finish().unwrap();
+
+    // Attempt to unpack should be immediately rejected
+    let result = unpack_ktome_archive(&malicious_ktome, &unpack_dest, false, false);
+    assert!(
+        result.is_err(),
+        "Archive with path traversal must be rejected"
+    );
+    match result.unwrap_err() {
+        KryptotomeError::Detailed { code, message } => {
+            assert_eq!(
+                code,
+                kryptotome_core::error::KryptotomeErrorCode::Kryp106InvalidManifestSchema
+            );
+            assert!(message.contains("Path traversal attempt detected"));
+        }
+        err => panic!("Expected Detailed Kryp106 error, got {:?}", err),
+    }
+
+    // Verify file was NOT created outside destination
+    assert!(!temp_root.join("escape.txt").exists());
 
     let _ = std::fs::remove_dir_all(temp_root);
 }

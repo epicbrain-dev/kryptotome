@@ -21,8 +21,13 @@ fn test_rust_offline_airgap_proof_verification_and_table_sharing() {
 
     let entitlements = vec![Entitlement {
         package_id: package_id.to_string(),
-        content_digest: "sha256:73a85757532b62fd82a3b611d03ce5de2f2a3491f9b47568574afda042faeb8f".to_string(),
-        scope: vec!["rules".to_string(), "monsters".to_string(), "gm_notes".to_string()],
+        content_digest: "sha256:73a85757532b62fd82a3b611d03ce5de2f2a3491f9b47568574afda042faeb8f"
+            .to_string(),
+        scope: vec![
+            "rules".to_string(),
+            "monsters".to_string(),
+            "gm_notes".to_string(),
+        ],
     }];
 
     let credential = KryptotomeCredential::new(
@@ -48,11 +53,7 @@ fn test_rust_offline_airgap_proof_verification_and_table_sharing() {
     assert!(!verifier.is_package_unlocked(package_id));
 
     let airgap_nonce = format!("offline-nonce-airgap-{}", rand::random::<u64>());
-    let challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        airgap_nonce,
-        300,
-    );
+    let challenge = ChallengeNonce::new(package_id.to_string(), airgap_nonce, 300);
 
     // 5. Air-Gapped Groth16 Zero-Knowledge Proof Generation
     let zk_proof = vault
@@ -81,7 +82,9 @@ fn test_rust_offline_airgap_proof_verification_and_table_sharing() {
     let mut peer_client = PeerSessionClient::new("peer:player:cleric");
 
     let access_request = peer_client.create_access_request(package_id);
-    let store_lookup = |_pkg: &str| Some("sha256:73a85757532b62fd82a3b611d03ce5de2f2a3491f9b47568574afda042faeb8f".to_string());
+    let store_lookup = |_pkg: &str| {
+        Some("sha256:73a85757532b62fd82a3b611d03ce5de2f2a3491f9b47568574afda042faeb8f".to_string())
+    };
 
     // Host handles request with local dynamic scope policy
     let access_response = host

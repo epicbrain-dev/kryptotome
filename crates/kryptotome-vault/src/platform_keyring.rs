@@ -54,6 +54,7 @@ impl PlatformBackend {
 #[derive(Clone)]
 enum KeyringMode {
     Native,
+    NativeWithFallback(Arc<RwLock<HashMap<String, Vec<u8>>>>),
     InMemory(Arc<RwLock<HashMap<String, Vec<u8>>>>),
 }
 
@@ -79,6 +80,19 @@ impl PlatformKeyring {
         }
     }
 
+    /// Creates a platform keyring that attempts native OS keychain access and gracefully falls back to in-memory storage if unavailable
+    pub fn with_fallback() -> Self {
+        Self::with_fallback_and_service(DEFAULT_KEYCHAIN_SERVICE)
+    }
+
+    /// Creates a platform keyring with fallback using a custom service name
+    pub fn with_fallback_and_service(service: impl Into<String>) -> Self {
+        Self {
+            service: service.into(),
+            mode: KeyringMode::NativeWithFallback(Arc::new(RwLock::new(HashMap::new()))),
+        }
+    }
+
     /// Creates an in-memory simulated platform keychain for headless CI, unit tests, or ephemeral sessions
     pub fn in_memory() -> Self {
         Self::in_memory_with_service(DEFAULT_KEYCHAIN_SERVICE)
@@ -100,7 +114,7 @@ impl PlatformKeyring {
     /// Returns the platform backend currently backing this instance
     pub fn backend(&self) -> PlatformBackend {
         match self.mode {
-            KeyringMode::Native => PlatformBackend::current(),
+            KeyringMode::Native | KeyringMode::NativeWithFallback(_) => PlatformBackend::current(),
             KeyringMode::InMemory(_) => PlatformBackend::InMemoryMock,
         }
     }
@@ -112,7 +126,8 @@ impl PlatformKeyring {
                 let hex_encoded = hex_encode(secret_bytes);
                 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
                 {
-                    let entry = keyring::Entry::new(&self.service, account).map_err(map_keyring_err)?;
+                    let entry =
+                        keyring::Entry::new(&self.service, account).map_err(map_keyring_err)?;
                     entry.set_password(&hex_encoded).map_err(map_keyring_err)?;
                     Ok(())
                 }
@@ -120,9 +135,32 @@ impl PlatformKeyring {
                 {
                     Err(KryptotomeError::Detailed {
                         code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
-                        message: "Native OS keychain is not supported on this platform architecture".to_string(),
+                        message:
+                            "Native OS keychain is not supported on this platform architecture"
+                                .to_string(),
                     })
                 }
+            }
+            KeyringMode::NativeWithFallback(fallback_store) => {
+                let hex_encoded = hex_encode(secret_bytes);
+                #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+                {
+                    let native_ok = keyring::Entry::new(&self.service, account)
+                        .map_err(map_keyring_err)
+                        .and_then(|e| e.set_password(&hex_encoded).map_err(map_keyring_err));
+                    if native_ok.is_ok() {
+                        return Ok(());
+                    }
+                }
+                // Fall back to in-memory store
+                let mut guard = fallback_store
+                    .write()
+                    .map_err(|_| KryptotomeError::Detailed {
+                        code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
+                        message: "In-memory keychain lock poisoned".to_string(),
+                    })?;
+                guard.insert(account.to_string(), secret_bytes.to_vec());
+                Ok(())
             }
             KeyringMode::InMemory(store) => {
                 let mut guard = store.write().map_err(|_| KryptotomeError::Detailed {
@@ -141,7 +179,8 @@ impl PlatformKeyring {
             KeyringMode::Native => {
                 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
                 {
-                    let entry = keyring::Entry::new(&self.service, account).map_err(map_keyring_err)?;
+                    let entry =
+                        keyring::Entry::new(&self.service, account).map_err(map_keyring_err)?;
                     let hex_str = entry.get_password().map_err(map_keyring_err)?;
                     hex_decode(&hex_str)?
                 }
@@ -149,8 +188,48 @@ impl PlatformKeyring {
                 {
                     return Err(KryptotomeError::Detailed {
                         code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
-                        message: "Native OS keychain is not supported on this platform architecture".to_string(),
+                        message:
+                            "Native OS keychain is not supported on this platform architecture"
+                                .to_string(),
                     });
+                }
+            }
+            KeyringMode::NativeWithFallback(fallback_store) => {
+                #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+                let native_bytes = (|| {
+                    let entry =
+                        keyring::Entry::new(&self.service, account).map_err(map_keyring_err)?;
+                    let hex_str = entry.get_password().map_err(map_keyring_err)?;
+                    hex_decode(&hex_str)
+                })();
+                #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+                let native_bytes: Result<Vec<u8>> = Err(KryptotomeError::Detailed {
+                    code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
+                    message: "Native OS keychain is not supported on this platform architecture"
+                        .to_string(),
+                });
+
+                match native_bytes {
+                    Ok(b) => b,
+                    Err(_) => {
+                        let guard =
+                            fallback_store
+                                .read()
+                                .map_err(|_| KryptotomeError::Detailed {
+                                    code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
+                                    message: "In-memory keychain lock poisoned".to_string(),
+                                })?;
+                        guard
+                            .get(account)
+                            .cloned()
+                            .ok_or_else(|| KryptotomeError::Detailed {
+                                code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
+                                message: format!(
+                                    "Key not found in platform keychain or fallback store: {}",
+                                    account
+                                ),
+                            })?
+                    }
                 }
             }
             KeyringMode::InMemory(store) => {
@@ -158,10 +237,13 @@ impl PlatformKeyring {
                     code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
                     message: "In-memory keychain lock poisoned".to_string(),
                 })?;
-                guard.get(account).cloned().ok_or_else(|| KryptotomeError::Detailed {
-                    code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
-                    message: format!("Key not found in platform keychain: {}", account),
-                })?
+                guard
+                    .get(account)
+                    .cloned()
+                    .ok_or_else(|| KryptotomeError::Detailed {
+                        code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
+                        message: format!("Key not found in platform keychain: {}", account),
+                    })?
             }
         };
 
@@ -185,7 +267,8 @@ impl PlatformKeyring {
             KeyringMode::Native => {
                 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
                 {
-                    let entry = keyring::Entry::new(&self.service, account).map_err(map_keyring_err)?;
+                    let entry =
+                        keyring::Entry::new(&self.service, account).map_err(map_keyring_err)?;
                     entry.delete_credential().map_err(map_keyring_err)?;
                     Ok(())
                 }
@@ -193,19 +276,39 @@ impl PlatformKeyring {
                 {
                     Err(KryptotomeError::Detailed {
                         code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
-                        message: "Native OS keychain is not supported on this platform architecture".to_string(),
+                        message:
+                            "Native OS keychain is not supported on this platform architecture"
+                                .to_string(),
                     })
                 }
+            }
+            KeyringMode::NativeWithFallback(fallback_store) => {
+                #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+                {
+                    if let Ok(entry) = keyring::Entry::new(&self.service, account) {
+                        let _ = entry.delete_credential();
+                    }
+                }
+                let mut guard = fallback_store
+                    .write()
+                    .map_err(|_| KryptotomeError::Detailed {
+                        code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
+                        message: "In-memory keychain lock poisoned".to_string(),
+                    })?;
+                guard.remove(account);
+                Ok(())
             }
             KeyringMode::InMemory(store) => {
                 let mut guard = store.write().map_err(|_| KryptotomeError::Detailed {
                     code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
                     message: "In-memory keychain lock poisoned".to_string(),
                 })?;
-                guard.remove(account).ok_or_else(|| KryptotomeError::Detailed {
-                    code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
-                    message: format!("Key not found in platform keychain: {}", account),
-                })?;
+                guard
+                    .remove(account)
+                    .ok_or_else(|| KryptotomeError::Detailed {
+                        code: KryptotomeErrorCode::Kryp601KeyringAccessFailed,
+                        message: format!("Key not found in platform keychain: {}", account),
+                    })?;
                 Ok(())
             }
         }
@@ -262,7 +365,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 
 fn hex_decode(s: &str) -> Result<Vec<u8>> {
     let s = s.trim();
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return Err(KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp604KeyCustodyError,
             message: "Invalid hex string length in platform keychain".to_string(),
@@ -338,5 +441,26 @@ mod tests {
             }
             _ => panic!("Expected Kryp604KeyCustodyError"),
         }
+    }
+
+    #[test]
+    fn test_keyring_with_fallback_lifecycle() {
+        let fallback_ring =
+            PlatformKeyring::with_fallback_and_service("org.kryptotome.test.fallback");
+        let keyring = Keyring::generate();
+        let key_id = keyring.key_id.clone();
+
+        // 1. Store
+        fallback_ring.store_keyring(&keyring).unwrap();
+        assert!(fallback_ring.has_secret(&key_id));
+
+        // 2. Load
+        let loaded = fallback_ring.load_keyring(&key_id).unwrap();
+        assert_eq!(loaded.key_id, keyring.key_id);
+        assert_eq!(loaded.secret_bytes(), keyring.secret_bytes());
+
+        // 3. Delete
+        fallback_ring.delete_keyring(&key_id).unwrap();
+        assert!(!fallback_ring.has_secret(&key_id));
     }
 }

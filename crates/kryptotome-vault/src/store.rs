@@ -83,15 +83,16 @@ impl VaultBackupPayload {
             store.insert_credential(cred.clone());
         }
 
-        let keyring = match &self.keyring {
-            Some(data) => Some(Keyring::from_backup_data(data).map_err(|e| {
-                KryptotomeError::Detailed {
-                    code: KryptotomeErrorCode::Kryp604KeyCustodyError,
-                    message: format!("Failed to restore keyring from backup data: {}", e),
-                }
-            })?),
-            None => None,
-        };
+        let keyring =
+            match &self.keyring {
+                Some(data) => Some(Keyring::from_backup_data(data).map_err(|e| {
+                    KryptotomeError::Detailed {
+                        code: KryptotomeErrorCode::Kryp604KeyCustodyError,
+                        message: format!("Failed to restore keyring from backup data: {}", e),
+                    }
+                })?),
+                None => None,
+            };
 
         Ok((store, keyring))
     }
@@ -114,13 +115,22 @@ impl EncryptedVaultBackup {
         })
     }
 
-    /// Saves encrypted backup envelope directly to a file on disk
+    /// Saves encrypted backup envelope directly to a file on disk with owner-only permissions (0600 on Unix)
     pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<()> {
+        let path = path.as_ref();
         let json = self.to_json()?;
         fs::write(path, json).map_err(|e| KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp902IoError,
             message: format!("Failed to write encrypted vault backup file: {}", e),
-        })
+        })?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+        }
+
+        Ok(())
     }
 
     /// Loads encrypted backup envelope from a file on disk
@@ -162,38 +172,42 @@ impl EncryptedVaultBackup {
                     }
                 })?;
                 let nonce = AesNonce::from_slice(&nonce_bytes);
-                cipher_engine.decrypt(nonce, ciphertext.as_ref()).map_err(|_| {
-                    KryptotomeError::Detailed {
+                cipher_engine
+                    .decrypt(nonce, ciphertext.as_ref())
+                    .map_err(|_| KryptotomeError::Detailed {
                         code: KryptotomeErrorCode::Kryp602VaultDecryptionFailed,
-                        message: "Invalid passphrase or corrupted AES-256-GCM vault backup".to_string(),
-                    }
-                })?
+                        message: "Invalid passphrase or corrupted AES-256-GCM vault backup"
+                            .to_string(),
+                    })?
             }
             EncryptionCipher::ChaCha20Poly1305 => {
-                let cipher_engine = ChaCha20Poly1305::new_from_slice(&derived_key).map_err(|e| {
-                    KryptotomeError::Detailed {
-                        code: KryptotomeErrorCode::Kryp604KeyCustodyError,
-                        message: format!("Invalid ChaCha20 key: {}", e),
-                    }
-                })?;
+                let cipher_engine =
+                    ChaCha20Poly1305::new_from_slice(&derived_key).map_err(|e| {
+                        KryptotomeError::Detailed {
+                            code: KryptotomeErrorCode::Kryp604KeyCustodyError,
+                            message: format!("Invalid ChaCha20 key: {}", e),
+                        }
+                    })?;
                 let nonce = ChaChaNonce::from_slice(&nonce_bytes);
-                cipher_engine.decrypt(nonce, ciphertext.as_ref()).map_err(|_| {
-                    KryptotomeError::Detailed {
+                cipher_engine
+                    .decrypt(nonce, ciphertext.as_ref())
+                    .map_err(|_| KryptotomeError::Detailed {
                         code: KryptotomeErrorCode::Kryp602VaultDecryptionFailed,
-                        message: "Invalid passphrase or corrupted ChaCha20-Poly1305 vault backup".to_string(),
-                    }
-                })?
+                        message: "Invalid passphrase or corrupted ChaCha20-Poly1305 vault backup"
+                            .to_string(),
+                    })?
             }
         };
 
         derived_key.zeroize();
 
-        let payload_res = serde_json::from_slice::<VaultBackupPayload>(&decrypted_bytes).map_err(|e| {
-            KryptotomeError::Detailed {
-                code: KryptotomeErrorCode::Kryp602VaultDecryptionFailed,
-                message: format!("Failed to deserialize decrypted backup payload: {}", e),
-            }
-        });
+        let payload_res =
+            serde_json::from_slice::<VaultBackupPayload>(&decrypted_bytes).map_err(|e| {
+                KryptotomeError::Detailed {
+                    code: KryptotomeErrorCode::Kryp602VaultDecryptionFailed,
+                    message: format!("Failed to deserialize decrypted backup payload: {}", e),
+                }
+            });
 
         decrypted_bytes.zeroize();
         payload_res
@@ -230,8 +244,16 @@ impl VaultStore {
     }
 
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let path = path.as_ref();
         let json = self.export_to_json()?;
         std::fs::write(path, json)?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+        }
+
         Ok(())
     }
 
@@ -268,8 +290,8 @@ impl VaultStore {
             credentials,
         };
 
-        let mut payload_bytes = serde_json::to_vec(&payload)
-            .map_err(KryptotomeError::SerializationError)?;
+        let mut payload_bytes =
+            serde_json::to_vec(&payload).map_err(KryptotomeError::SerializationError)?;
         let mut derived_key = kdf.derive_key(passphrase)?;
 
         let (nonce_bytes, ciphertext_bytes) = match cipher {
@@ -290,12 +312,13 @@ impl VaultStore {
                 (nonce.to_vec(), ct)
             }
             EncryptionCipher::ChaCha20Poly1305 => {
-                let cipher_engine = ChaCha20Poly1305::new_from_slice(&derived_key).map_err(|e| {
-                    KryptotomeError::Detailed {
-                        code: KryptotomeErrorCode::Kryp604KeyCustodyError,
-                        message: format!("Invalid ChaCha20 key: {}", e),
-                    }
-                })?;
+                let cipher_engine =
+                    ChaCha20Poly1305::new_from_slice(&derived_key).map_err(|e| {
+                        KryptotomeError::Detailed {
+                            code: KryptotomeErrorCode::Kryp604KeyCustodyError,
+                            message: format!("Invalid ChaCha20 key: {}", e),
+                        }
+                    })?;
                 let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
                 let ct = cipher_engine
                     .encrypt(&nonce, payload_bytes.as_slice())
@@ -378,10 +401,11 @@ impl VaultStore {
         }
         match payload.keyring {
             Some(data) => {
-                let kr = Keyring::from_backup_data(&data).map_err(|e| KryptotomeError::Detailed {
-                    code: KryptotomeErrorCode::Kryp604KeyCustodyError,
-                    message: format!("Failed to restore keyring from backup data: {}", e),
-                })?;
+                let kr =
+                    Keyring::from_backup_data(&data).map_err(|e| KryptotomeError::Detailed {
+                        code: KryptotomeErrorCode::Kryp604KeyCustodyError,
+                        message: format!("Failed to restore keyring from backup data: {}", e),
+                    })?;
                 Ok(Some(kr))
             }
             None => Ok(None),
@@ -544,9 +568,9 @@ impl VaultStore {
         credential_id: &str,
         revocation_list: &PublisherRevocationList,
     ) -> Result<&'a KryptotomeCredential> {
-        let cred = self.get_credential(credential_id).ok_or_else(|| {
-            KryptotomeError::EntitlementNotFound(credential_id.to_string())
-        })?;
+        let cred = self
+            .get_credential(credential_id)
+            .ok_or_else(|| KryptotomeError::EntitlementNotFound(credential_id.to_string()))?;
 
         match revocation_list.check_status(credential_id) {
             RevocationStatus::Active => Ok(cred),
@@ -589,7 +613,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 
 fn hex_decode(s: &str) -> Result<Vec<u8>> {
     let s = s.trim();
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return Err(KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp602VaultDecryptionFailed,
             message: "Invalid hex string length in encrypted backup".to_string(),
@@ -655,12 +679,14 @@ mod tests {
         assert_eq!(backup.version, 1);
         assert_eq!(backup.cipher, EncryptionCipher::Aes256Gcm);
         assert_eq!(backup.credential_count, 2);
-        assert_eq!(backup.vault_key_id.as_deref(), Some(keyring.key_id.as_str()));
+        assert_eq!(
+            backup.vault_key_id.as_deref(),
+            Some(keyring.key_id.as_str())
+        );
 
         // Restore
         let (restored_store, restored_keyring) =
-            VaultStore::restore_from_backup(&backup, passphrase)
-                .expect("Restore should succeed");
+            VaultStore::restore_from_backup(&backup, passphrase).expect("Restore should succeed");
 
         assert_eq!(restored_store.credentials.len(), 2);
         assert!(restored_store.get_credential("cred-1").is_some());
@@ -675,7 +701,10 @@ mod tests {
     #[test]
     fn test_vault_backup_restore_chacha20_poly1305() {
         let mut store = VaultStore::new();
-        store.insert_credential(make_sample_credential("cred-alpha", "pkg.baldurs-gate-expansion"));
+        store.insert_credential(make_sample_credential(
+            "cred-alpha",
+            "pkg.baldurs-gate-expansion",
+        ));
 
         let keyring = Keyring::generate();
         let passphrase = "chacha20-poly1305-super-secret-key";
@@ -693,11 +722,12 @@ mod tests {
         assert_eq!(backup.credential_count, 1);
 
         let (restored_store, restored_keyring) =
-            VaultStore::restore_from_backup(&backup, passphrase)
-                .expect("Restore should succeed");
+            VaultStore::restore_from_backup(&backup, passphrase).expect("Restore should succeed");
 
         assert_eq!(restored_store.credentials.len(), 1);
-        assert!(restored_store.find_for_package("pkg.baldurs-gate-expansion").is_some());
+        assert!(restored_store
+            .find_for_package("pkg.baldurs-gate-expansion")
+            .is_some());
         let restored_kr = restored_keyring.expect("Keyring must be present");
         assert_eq!(restored_kr.secret_bytes(), keyring.secret_bytes());
     }
@@ -721,8 +751,7 @@ mod tests {
         assert_eq!(backup.credential_count, 1);
 
         let (restored_store, restored_keyring) =
-            VaultStore::restore_from_backup(&backup, passphrase)
-                .expect("Restore should succeed");
+            VaultStore::restore_from_backup(&backup, passphrase).expect("Restore should succeed");
 
         assert_eq!(restored_store.credentials.len(), 1);
         assert!(restored_keyring.is_none());
@@ -747,7 +776,10 @@ mod tests {
             KryptotomeError::Detailed { code, .. } => {
                 assert_eq!(code, KryptotomeErrorCode::Kryp602VaultDecryptionFailed);
             }
-            _ => panic!("Expected Detailed KryptotomeError with Kryp602, got {:?}", err),
+            _ => panic!(
+                "Expected Detailed KryptotomeError with Kryp602, got {:?}",
+                err
+            ),
         }
     }
 
@@ -758,9 +790,16 @@ mod tests {
         let keyring = Keyring::generate();
 
         let temp_dir = std::env::temp_dir();
-        let backup_file_path = temp_dir.join(format!("test_backup_{}{}", uuid_v4_simple(), BACKUP_FILE_EXTENSION));
+        let backup_file_path = temp_dir.join(format!(
+            "test_backup_{}{}",
+            uuid_v4_simple(),
+            BACKUP_FILE_EXTENSION
+        ));
 
-        assert!(backup_file_path.to_str().unwrap().ends_with(BACKUP_FILE_EXTENSION));
+        assert!(backup_file_path
+            .to_str()
+            .unwrap()
+            .ends_with(BACKUP_FILE_EXTENSION));
 
         let passphrase = "file-roundtrip-passphrase";
         store
@@ -843,8 +882,12 @@ mod tests {
         assert_eq!(revoked_list, vec!["cred-revoked".to_string()]);
 
         // 3. Validation with revocation
-        assert!(store.validate_credential_with_revocation("cred-active", &rev_list).is_ok());
-        let err = store.validate_credential_with_revocation("cred-revoked", &rev_list).unwrap_err();
+        assert!(store
+            .validate_credential_with_revocation("cred-active", &rev_list)
+            .is_ok());
+        let err = store
+            .validate_credential_with_revocation("cred-revoked", &rev_list)
+            .unwrap_err();
         match err {
             KryptotomeError::CredentialRevoked(msg) => {
                 assert!(msg.contains("cred-revoked"));
@@ -859,8 +902,7 @@ mod tests {
         let nonce_active = format!("nonce-active-{}", rand::random::<u64>());
         let challenge_revoked =
             ChallengeNonce::new("pkg.revoked-game".to_string(), nonce_revoked, 60);
-        let challenge_active =
-            ChallengeNonce::new("pkg.active-game".to_string(), nonce_active, 60);
+        let challenge_active = ChallengeNonce::new("pkg.active-game".to_string(), nonce_active, 60);
 
         let proof_err = store
             .create_proof_for_challenge_with_revocation(&keyring, &challenge_revoked, &rev_list)
@@ -870,8 +912,11 @@ mod tests {
             _ => panic!("Expected CredentialRevoked for challenge proof"),
         }
 
-        let proof_ok = store
-            .create_proof_for_challenge_with_revocation(&keyring, &challenge_active, &rev_list);
+        let proof_ok = store.create_proof_for_challenge_with_revocation(
+            &keyring,
+            &challenge_active,
+            &rev_list,
+        );
         assert!(proof_ok.is_ok());
 
         // 5. Purging revoked credentials
@@ -890,11 +935,7 @@ mod tests {
 
         let keyring = Keyring::generate();
         let nonce_zkp = format!("nonce-zkp-{}", rand::random::<u64>());
-        let challenge = ChallengeNonce::new(
-            "pkg.elder-scrolls-skyrim".to_string(),
-            nonce_zkp,
-            120,
-        );
+        let challenge = ChallengeNonce::new("pkg.elder-scrolls-skyrim".to_string(), nonce_zkp, 120);
 
         let start = std::time::Instant::now();
         let zk_proof = store
@@ -910,9 +951,8 @@ mod tests {
 
         // Verification against global circuit verifying key
         let (_, vk) = kryptotome_core::get_or_init_entitlement_setup();
-        let groth16_proof =
-            kryptotome_core::deserialize_proof_compressed(&zk_proof.proof_bytes)
-                .expect("Failed to deserialize Groth16 proof");
+        let groth16_proof = kryptotome_core::deserialize_proof_compressed(&zk_proof.proof_bytes)
+            .expect("Failed to deserialize Groth16 proof");
 
         let entitlement = &cred.credential_subject.entitlements[0];
         let public_inputs = vec![
@@ -923,9 +963,13 @@ mod tests {
             kryptotome_core::string_to_scalar(&cred.credential_subject.holder_commitment),
         ];
 
-        let is_valid = kryptotome_core::verify_entitlement_proof(vk, &public_inputs, &groth16_proof)
-            .expect("Verification must succeed");
-        assert!(is_valid, "Generated Groth16 proof must verify against circuit VK");
+        let is_valid =
+            kryptotome_core::verify_entitlement_proof(vk, &public_inputs, &groth16_proof)
+                .expect("Verification must succeed");
+        assert!(
+            is_valid,
+            "Generated Groth16 proof must verify against circuit VK"
+        );
 
         // Tamper test: tampered nonce fails
         let tampered_nonce = format!("tampered-nonce-{}", rand::random::<u64>());
@@ -936,8 +980,9 @@ mod tests {
             public_inputs[3],
             public_inputs[4],
         ];
-        let tampered_valid = kryptotome_core::verify_entitlement_proof(vk, &tampered_inputs, &groth16_proof)
-            .unwrap();
+        let tampered_valid =
+            kryptotome_core::verify_entitlement_proof(vk, &tampered_inputs, &groth16_proof)
+                .unwrap();
         assert!(!tampered_valid, "Tampered inputs must fail verification");
     }
 
@@ -949,11 +994,7 @@ mod tests {
 
         let keyring = Keyring::generate();
         let nonce_bundle = format!("nonce-bundle-{}", rand::random::<u64>());
-        let challenge = ChallengeNonce::new(
-            "pkg.cyberpunk".to_string(),
-            nonce_bundle,
-            120,
-        );
+        let challenge = ChallengeNonce::new("pkg.cyberpunk".to_string(), nonce_bundle, 120);
 
         let bundle = store
             .create_proof_bundle_for_challenge(&keyring, &challenge)
@@ -971,13 +1012,16 @@ mod tests {
         // URN and compact binary tests
         let urn = bundle.to_urn().expect("URN conversion must succeed");
         assert!(urn.starts_with("urn:kryptotome:zkproof:v1:"));
-        let compact_bytes = bundle.to_compact_bytes().expect("Compact bytes must succeed");
+        let compact_bytes = bundle
+            .to_compact_bytes()
+            .expect("Compact bytes must succeed");
         assert!(compact_bytes.starts_with(kryptotome_core::BUNDLE_MAGIC));
     }
 
     #[test]
     fn test_vault_store_credential_import_lookup_and_export() {
-        let temp_dir = std::env::temp_dir().join(format!("ktome_store_test_{}", rand::random::<u64>()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("ktome_store_test_{}", rand::random::<u64>()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let store_file = temp_dir.join("vault_store.json");
 
@@ -990,7 +1034,7 @@ mod tests {
         // 2. Credential Import via insert_credential
         let cred_1 = make_sample_credential("cred-id-001", "paizo/pathfinder-spells");
         let cred_2 = make_sample_credential("cred-id-002", "paizo/pathfinder-monsters");
-        
+
         // Multi-entitlement credential
         let issuer = kryptotome_core::Issuer {
             id: "did:key:zPublisher789".to_string(),
@@ -1025,51 +1069,75 @@ mod tests {
         assert_eq!(store.credentials.len(), 3);
 
         // 3. Credential Lookup by ID
-        let looked_up_1 = store.get_credential("cred-id-001").expect("cred-id-001 must be found");
+        let looked_up_1 = store
+            .get_credential("cred-id-001")
+            .expect("cred-id-001 must be found");
         assert_eq!(looked_up_1.id, "cred-id-001");
-        assert_eq!(looked_up_1.credential_subject.entitlements[0].package_id, "paizo/pathfinder-spells");
+        assert_eq!(
+            looked_up_1.credential_subject.entitlements[0].package_id,
+            "paizo/pathfinder-spells"
+        );
 
-        let looked_up_2 = store.get_credential("cred-id-002").expect("cred-id-002 must be found");
+        let looked_up_2 = store
+            .get_credential("cred-id-002")
+            .expect("cred-id-002 must be found");
         assert_eq!(looked_up_2.id, "cred-id-002");
-        assert_eq!(looked_up_2.credential_subject.entitlements[0].package_id, "paizo/pathfinder-monsters");
+        assert_eq!(
+            looked_up_2.credential_subject.entitlements[0].package_id,
+            "paizo/pathfinder-monsters"
+        );
 
         assert!(store.get_credential("cred-id-missing").is_none());
 
         // 4. Credential Lookup by Package ID (find_for_package)
-        let found_spells = store.find_for_package("paizo/pathfinder-spells").expect("Spells cred must be found");
+        let found_spells = store
+            .find_for_package("paizo/pathfinder-spells")
+            .expect("Spells cred must be found");
         assert_eq!(found_spells.id, "cred-id-001");
 
-        let found_monsters = store.find_for_package("paizo/pathfinder-monsters").expect("Monsters cred must be found");
+        let found_monsters = store
+            .find_for_package("paizo/pathfinder-monsters")
+            .expect("Monsters cred must be found");
         assert_eq!(found_monsters.id, "cred-id-002");
 
         // Multi-entitlement lookups
-        let found_core = store.find_for_package("paizo/rules-core").expect("Core rules cred must be found");
+        let found_core = store
+            .find_for_package("paizo/rules-core")
+            .expect("Core rules cred must be found");
         assert_eq!(found_core.id, "cred-id-multi");
 
-        let found_expanded = store.find_for_package("paizo/rules-expanded").expect("Expanded rules cred must be found");
+        let found_expanded = store
+            .find_for_package("paizo/rules-expanded")
+            .expect("Expanded rules cred must be found");
         assert_eq!(found_expanded.id, "cred-id-multi");
 
         assert!(store.find_for_package("paizo/unowned-module").is_none());
 
         // 5. Credential Export to JSON string
-        let exported_json = store.export_to_json().expect("Exporting to JSON must succeed");
+        let exported_json = store
+            .export_to_json()
+            .expect("Exporting to JSON must succeed");
         assert!(exported_json.contains("cred-id-001"));
         assert!(exported_json.contains("cred-id-002"));
         assert!(exported_json.contains("cred-id-multi"));
         assert!(exported_json.contains("paizo/rules-expanded"));
 
         // 6. Credential Import from JSON string
-        let imported_from_json = VaultStore::import_from_json(&exported_json).expect("Importing from JSON must succeed");
+        let imported_from_json =
+            VaultStore::import_from_json(&exported_json).expect("Importing from JSON must succeed");
         assert_eq!(imported_from_json, store);
 
         // Corrupted JSON import returns SerializationError
         assert!(VaultStore::import_from_json("{corrupted json").is_err());
 
         // 7. Credential Export to File (save_to_file) & Import from File (load_from_file)
-        store.save_to_file(&store_file).expect("save_to_file must succeed");
+        store
+            .save_to_file(&store_file)
+            .expect("save_to_file must succeed");
         assert!(store_file.exists());
 
-        let imported_from_file = VaultStore::load_from_file(&store_file).expect("load_from_file must succeed");
+        let imported_from_file =
+            VaultStore::load_from_file(&store_file).expect("load_from_file must succeed");
         assert_eq!(imported_from_file, store);
         assert_eq!(imported_from_file.credentials.len(), 3);
         assert!(imported_from_file.get_credential("cred-id-multi").is_some());
@@ -1084,4 +1152,3 @@ mod tests {
         hex_encode(&bytes)
     }
 }
-

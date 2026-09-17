@@ -5,9 +5,7 @@ use kryptotome_core::{
     Entitlement, Issuer, KryptotomeCredential,
 };
 use kryptotome_vault::{Keyring, VaultStore};
-use kryptotome_verifier::{
-    EmbeddedVerifier, PeerAccessRequest, PeerSessionClient, SessionManager,
-};
+use kryptotome_verifier::{EmbeddedVerifier, PeerAccessRequest, PeerSessionClient, SessionManager};
 
 fn make_sample_credential(id: &str, package_id: &str) -> KryptotomeCredential {
     let issuer = Issuer {
@@ -17,7 +15,8 @@ fn make_sample_credential(id: &str, package_id: &str) -> KryptotomeCredential {
     };
     let entitlements = vec![Entitlement {
         package_id: package_id.to_string(),
-        content_digest: "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210".to_string(),
+        content_digest: "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+            .to_string(),
         scope: vec!["ruleset".to_string(), "compendium".to_string()],
     }];
     KryptotomeCredential::new(
@@ -39,11 +38,7 @@ fn test_verifier_zk_proof_replay_attack_rejected() {
 
     let keyring = Keyring::generate();
     let alpha_nonce = format!("unique-nonce-alpha-{}", rand::random::<u64>());
-    let challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        alpha_nonce,
-        300,
-    );
+    let challenge = ChallengeNonce::new(package_id.to_string(), alpha_nonce, 300);
 
     let zk_proof = store
         .create_proof_for_challenge(&keyring, &challenge)
@@ -74,11 +69,7 @@ fn test_verifier_zk_proof_replay_attack_rejected() {
 
     // A fresh nonce with new proof should succeed
     let beta_nonce = format!("unique-nonce-beta-{}", rand::random::<u64>());
-    let fresh_challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        beta_nonce,
-        300,
-    );
+    let fresh_challenge = ChallengeNonce::new(package_id.to_string(), beta_nonce, 300);
     let fresh_proof = store
         .create_proof_for_challenge(&keyring, &fresh_challenge)
         .expect("Prover must succeed for fresh challenge");
@@ -97,11 +88,7 @@ fn test_verifier_proof_bundle_replay_attack_rejected() {
 
     let keyring = Keyring::generate();
     let bundle_nonce = format!("unique-bundle-nonce-{}", rand::random::<u64>());
-    let challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        bundle_nonce,
-        300,
-    );
+    let challenge = ChallengeNonce::new(package_id.to_string(), bundle_nonce, 300);
 
     let bundle = store
         .create_proof_bundle_for_challenge(&keyring, &challenge)
@@ -136,11 +123,7 @@ fn test_expired_challenge_nonce_rejected_before_replay() {
     let _keyring = Keyring::generate();
     // Challenge expired 10 seconds ago
     let expired_nonce = format!("expired-nonce-{}", rand::random::<u64>());
-    let mut challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        expired_nonce,
-        -10,
-    );
+    let mut challenge = ChallengeNonce::new(package_id.to_string(), expired_nonce, -10);
     challenge.expires_at = Utc::now() - chrono::Duration::seconds(10);
 
     let mut verifier = EmbeddedVerifier::new();
@@ -178,11 +161,7 @@ fn test_session_handshake_access_request_replay_rejected() {
     let provider = |_pkg: &str| Some("sha256:validcontentdigest".to_string());
 
     let fixed_handshake_nonce = format!("fixed-handshake-nonce-{}", rand::random::<u64>());
-    let request = PeerAccessRequest::with_nonce(
-        "peer-alice",
-        package_id,
-        &fixed_handshake_nonce,
-    );
+    let request = PeerAccessRequest::with_nonce("peer-alice", package_id, &fixed_handshake_nonce);
 
     // First request: valid, returns signed attestation
     let response1 = session_mgr
@@ -202,11 +181,8 @@ fn test_session_handshake_access_request_replay_rejected() {
 
     // Fresh request with a different nonce succeeds
     let fresh_handshake_nonce = format!("fresh-handshake-nonce-{}", rand::random::<u64>());
-    let fresh_request = PeerAccessRequest::with_nonce(
-        "peer-alice",
-        package_id,
-        &fresh_handshake_nonce,
-    );
+    let fresh_request =
+        PeerAccessRequest::with_nonce("peer-alice", package_id, &fresh_handshake_nonce);
     let response2 = session_mgr
         .handle_peer_access_request(&fresh_request, &provider, None, None)
         .expect("Fresh handshake request must succeed");

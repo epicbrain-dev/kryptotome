@@ -1,9 +1,7 @@
 use kryptotome_core::credential::{Entitlement, Issuer, KryptotomeCredential};
 use kryptotome_core::error::{KryptotomeError, KryptotomeErrorCode};
 use kryptotome_vault::VaultStore;
-use kryptotome_verifier::{
-    EntitlementProvider, PeerSessionClient, SessionManager,
-};
+use kryptotome_verifier::{EntitlementProvider, PeerSessionClient, SessionManager};
 
 struct VaultEntitlementProvider<'a>(&'a VaultStore);
 
@@ -67,14 +65,20 @@ fn test_full_peer_authorization_handshake_with_vault() {
         .handle_peer_access_request(
             &access_request,
             &vault_provider,
-            Some(vec!["compendium:read".to_string(), "actor:sheet".to_string()]),
+            Some(vec![
+                "compendium:read".to_string(),
+                "actor:sheet".to_string(),
+            ]),
             Some(240), // 4 hours
         )
         .expect("Host should verify vault entitlement and issue signed token");
 
     assert_eq!(response.attestation.package_id, package_id);
     assert_eq!(response.attestation.content_digest, root_digest);
-    assert_eq!(response.attestation.recipient_peer_id, "peer:player:valeros");
+    assert_eq!(
+        response.attestation.recipient_peer_id,
+        "peer:player:valeros"
+    );
     assert_eq!(response.host_public_key_hex, host_pubkey);
     assert_eq!(response.nonce, access_request.nonce);
 

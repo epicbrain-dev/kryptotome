@@ -119,7 +119,8 @@ impl KryptotomeCredential {
             .contains(&"https://kryptotome.org/schemas/v1/context.jsonld".to_string())
         {
             return Err(KryptotomeError::W3cComplianceError(
-                "@context must include 'https://kryptotome.org/schemas/v1/context.jsonld'".to_string(),
+                "@context must include 'https://kryptotome.org/schemas/v1/context.jsonld'"
+                    .to_string(),
             ));
         }
 
@@ -132,7 +133,10 @@ impl KryptotomeCredential {
         }
 
         // 3. Validate type: Must include "VerifiableCredential" and "KryptotomeEntitlementCredential"
-        if !self.credential_type.contains(&"VerifiableCredential".to_string()) {
+        if !self
+            .credential_type
+            .contains(&"VerifiableCredential".to_string())
+        {
             return Err(KryptotomeError::W3cComplianceError(
                 "Credential type must include 'VerifiableCredential'".to_string(),
             ));
@@ -227,7 +231,10 @@ impl KryptotomeCredential {
 }
 
 fn is_valid_uri(s: &str) -> bool {
-    s.starts_with("urn:") || s.starts_with("did:") || s.starts_with("http://") || s.starts_with("https://")
+    s.starts_with("urn:")
+        || s.starts_with("did:")
+        || s.starts_with("http://")
+        || s.starts_with("https://")
 }
 
 #[cfg(test)]
@@ -268,7 +275,9 @@ mod tests {
         let mut cred = create_sample_credential();
         cred.context[0] = "https://www.w3.org/2018/credentials/v1".to_string(); // v1 instead of v2
         let err = cred.validate_w3c_compliance().unwrap_err();
-        assert!(err.to_string().contains("First element in @context must be 'https://www.w3.org/ns/credentials/v2'"));
+        assert!(err
+            .to_string()
+            .contains("First element in @context must be 'https://www.w3.org/ns/credentials/v2'"));
     }
 
     #[test]
@@ -276,7 +285,9 @@ mod tests {
         let mut cred = create_sample_credential();
         cred.credential_type = vec!["KryptotomeEntitlementCredential".to_string()];
         let err = cred.validate_w3c_compliance().unwrap_err();
-        assert!(err.to_string().contains("must include 'VerifiableCredential'"));
+        assert!(err
+            .to_string()
+            .contains("must include 'VerifiableCredential'"));
     }
 
     #[test]
@@ -284,7 +295,9 @@ mod tests {
         let mut cred = create_sample_credential();
         cred.valid_until = Some(cred.valid_from - chrono::Duration::hours(1));
         let err = cred.validate_w3c_compliance().unwrap_err();
-        assert!(err.to_string().contains("validUntil must be strictly after validFrom"));
+        assert!(err
+            .to_string()
+            .contains("validUntil must be strictly after validFrom"));
     }
 
     #[test]
@@ -300,6 +313,8 @@ mod tests {
         let mut cred = create_sample_credential();
         cred.credential_subject.entitlements.clear();
         let err = cred.validate_w3c_compliance().unwrap_err();
-        assert!(err.to_string().contains("must contain at least one entitlement"));
+        assert!(err
+            .to_string()
+            .contains("must contain at least one entitlement"));
     }
 }

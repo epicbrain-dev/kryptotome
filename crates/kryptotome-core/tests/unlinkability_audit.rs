@@ -13,7 +13,12 @@ use kryptotome_core::{
 use rand::SeedableRng;
 use std::collections::HashSet;
 
-fn make_sample_credential(id: &str, package_id: &str, holder_pub: &str, commitment_urn: &str) -> KryptotomeCredential {
+fn make_sample_credential(
+    id: &str,
+    package_id: &str,
+    holder_pub: &str,
+    commitment_urn: &str,
+) -> KryptotomeCredential {
     let issuer = Issuer {
         id: "did:key:zPublisherUnlinkabilityTest".to_string(),
         name: "Test Publisher".to_string(),
@@ -21,7 +26,8 @@ fn make_sample_credential(id: &str, package_id: &str, holder_pub: &str, commitme
     };
     let entitlements = vec![Entitlement {
         package_id: package_id.to_string(),
-        content_digest: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
+        content_digest: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+            .to_string(),
         scope: vec!["core_rules".to_string()],
     }];
     KryptotomeCredential::new(
@@ -111,9 +117,18 @@ fn test_groth16_proof_point_randomization_across_challenges() {
         let mut c_bytes = Vec::new();
         proof.c.serialize_compressed(&mut c_bytes).unwrap();
 
-        assert!(a_points.insert(a_bytes), "Point A must be unique across challenges");
-        assert!(b_points.insert(b_bytes), "Point B must be unique across challenges");
-        assert!(c_points.insert(c_bytes), "Point C must be unique across challenges");
+        assert!(
+            a_points.insert(a_bytes),
+            "Point A must be unique across challenges"
+        );
+        assert!(
+            b_points.insert(b_bytes),
+            "Point B must be unique across challenges"
+        );
+        assert!(
+            c_points.insert(c_bytes),
+            "Point C must be unique across challenges"
+        );
 
         let raw_bytes = serialize_proof_compressed(&proof).expect("Serialization succeeds");
         serialized_proofs.push(raw_bytes);
@@ -134,7 +149,8 @@ fn test_groth16_proof_point_randomization_across_challenges() {
         assert!(
             entropy > 6.50,
             "Proof #{} entropy {:.3} must be > 6.50 bits/byte (sample max = 7.585)",
-            i, entropy
+            i,
+            entropy
         );
     }
 
@@ -182,11 +198,8 @@ fn test_hamming_distance_indistinguishability_statistical_unlinkability() {
     let mut proofs_b: Vec<Vec<u8>> = Vec::new();
 
     for i in 0..num_samples {
-        let challenge = ChallengeNonce::new(
-            package_id.to_string(),
-            format!("stat-nonce-{:04}", i),
-            300,
-        );
+        let challenge =
+            ChallengeNonce::new(package_id.to_string(), format!("stat-nonce-{:04}", i), 300);
 
         let (proof_a, _) = prove_entitlement_for_credential(
             pk,
@@ -226,9 +239,9 @@ fn test_hamming_distance_indistinguishability_statistical_unlinkability() {
 
     // Measure inter-identity Hamming distances (Alice vs Bob across challenges)
     let mut inter_distances = Vec::new();
-    for i in 0..num_samples {
-        for j in 0..num_samples {
-            let dist = hamming_distance(&proofs_a[i], &proofs_b[j]);
+    for pa in &proofs_a {
+        for pb in &proofs_b {
+            let dist = hamming_distance(pa, pb);
             inter_distances.push(dist as f64 / total_bits as f64);
         }
     }
@@ -281,11 +294,8 @@ fn test_prepared_verification_succeeds_for_all_randomized_proofs() {
     let mut rng = rand::rngs::StdRng::seed_from_u64(0x9999_8888);
 
     for i in 0..5 {
-        let challenge = ChallengeNonce::new(
-            package_id.to_string(),
-            format!("rnd-nonce-{:03}", i),
-            300,
-        );
+        let challenge =
+            ChallengeNonce::new(package_id.to_string(), format!("rnd-nonce-{:03}", i), 300);
 
         let (proof, public_inputs) = prove_entitlement_for_credential(
             pk,

@@ -379,12 +379,13 @@ impl PublisherRevocationList {
 
     /// Verifies the publisher signature against an Ed25519 public key hex string
     pub fn verify_signature(&self, public_key_hex: &str) -> Result<bool> {
-        let sig_hex = self.signature_hex.as_ref().ok_or_else(|| {
-            KryptotomeError::Detailed {
+        let sig_hex = self
+            .signature_hex
+            .as_ref()
+            .ok_or_else(|| KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
                 message: "Revocation list contains no digital signature".to_string(),
-            }
-        })?;
+            })?;
 
         let clean_pub_hex = public_key_hex
             .strip_prefix("ed25519:")
@@ -405,12 +406,11 @@ impl PublisherRevocationList {
 
         let mut pub_arr = [0u8; 32];
         pub_arr.copy_from_slice(&pub_bytes);
-        let verifying_key = VerifyingKey::from_bytes(&pub_arr).map_err(|e| {
-            KryptotomeError::Detailed {
+        let verifying_key =
+            VerifyingKey::from_bytes(&pub_arr).map_err(|e| KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
                 message: format!("Malformed Ed25519 public key: {}", e),
-            }
-        })?;
+            })?;
 
         let sig_bytes = hex_decode(sig_hex).map_err(|e| KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp203CorruptedSignature,
@@ -420,7 +420,10 @@ impl PublisherRevocationList {
         if sig_bytes.len() != 64 {
             return Err(KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp203CorruptedSignature,
-                message: format!("Expected 64-byte Ed25519 signature, got {}", sig_bytes.len()),
+                message: format!(
+                    "Expected 64-byte Ed25519 signature, got {}",
+                    sig_bytes.len()
+                ),
             });
         }
 
@@ -517,7 +520,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 
 fn hex_decode(s: &str) -> Result<Vec<u8>> {
     let s = s.trim();
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return Err(KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp901SerializationError,
             message: "Invalid hex string length".to_string(),
@@ -624,10 +627,7 @@ mod tests {
         assert!(list.is_credential_revoked("cred-revoked-2"));
         assert!(!list.is_credential_revoked("cred-active-3"));
 
-        assert_eq!(
-            list.check_status("cred-active-3"),
-            RevocationStatus::Active
-        );
+        assert_eq!(list.check_status("cred-active-3"), RevocationStatus::Active);
         match list.check_status("cred-revoked-1") {
             RevocationStatus::Revoked { reason, .. } => {
                 assert_eq!(reason.as_deref(), Some("Key compromise"));
@@ -650,7 +650,8 @@ mod tests {
         assert!(list.verify_merkle_proof(&proof));
 
         // Tamper with list entries invalidates signature
-        list.revoked_credentials.push(RevocationEntry::new("cred-tampered", None));
+        list.revoked_credentials
+            .push(RevocationEntry::new("cred-tampered", None));
         assert!(list.verify_signature(&pub_hex).is_err());
     }
 
@@ -660,14 +661,20 @@ mod tests {
         list.add_revocation("cred-file-1", Some("Superseded"));
 
         let json = list.to_json().expect("JSON serialization failed");
-        let restored = PublisherRevocationList::from_json(&json).expect("JSON deserialization failed");
+        let restored =
+            PublisherRevocationList::from_json(&json).expect("JSON deserialization failed");
         assert_eq!(list, restored);
 
         let temp_dir = std::env::temp_dir();
-        let path = temp_dir.join(format!("test_revocations_{}{}", Utc::now().timestamp_nanos_opt().unwrap_or(0), REVOCATION_LIST_FILE_EXTENSION));
+        let path = temp_dir.join(format!(
+            "test_revocations_{}{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or(0),
+            REVOCATION_LIST_FILE_EXTENSION
+        ));
         list.save_to_file(&path).expect("File save failed");
 
-        let file_restored = PublisherRevocationList::load_from_file(&path).expect("File load failed");
+        let file_restored =
+            PublisherRevocationList::load_from_file(&path).expect("File load failed");
         assert_eq!(list, file_restored);
 
         let _ = fs::remove_file(&path);

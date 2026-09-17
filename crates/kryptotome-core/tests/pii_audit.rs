@@ -77,8 +77,12 @@ impl PiiInspector {
             if b == b'@' && i > 0 && i < bytes.len() - 1 {
                 let left = &s[..i];
                 let right = &s[i + 1..];
-                let left_valid = left.chars().rev().next().map_or(false, |c| c.is_alphanumeric());
-                let right_has_dot = right.contains('.') && right.chars().next().map_or(false, |c| c.is_alphanumeric());
+                let left_valid = left
+                    .chars()
+                    .next_back()
+                    .is_some_and(|c| c.is_alphanumeric());
+                let right_has_dot = right.contains('.')
+                    && right.chars().next().is_some_and(|c| c.is_alphanumeric());
                 if left_valid && right_has_dot {
                     return true;
                 }
@@ -169,7 +173,9 @@ fn test_credential_schema_contains_zero_pii() {
             holder_commitment: "urn:kryptotome:commitment:bls12381:8591c2b53...".to_string(),
             entitlements: vec![Entitlement {
                 package_id: "paizo/pathfinder-core".to_string(),
-                content_digest: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
+                content_digest:
+                    "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                        .to_string(),
                 scope: vec!["core_rules".to_string(), "compendium".to_string()],
             }],
         },
@@ -187,11 +193,15 @@ fn test_credential_schema_contains_zero_pii() {
 
     // Assert that holder identity is strictly a cryptographic commitment
     assert!(
-        cred.credential_subject.holder_commitment.starts_with("urn:kryptotome:commitment:"),
+        cred.credential_subject
+            .holder_commitment
+            .starts_with("urn:kryptotome:commitment:"),
         "Holder commitment must be a canonical commitment URN"
     );
     assert!(
-        !serialized.contains("email") && !serialized.contains("username") && !serialized.contains("realName"),
+        !serialized.contains("email")
+            && !serialized.contains("username")
+            && !serialized.contains("realName"),
         "No PII fields permitted in credential schema"
     );
 }
@@ -241,7 +251,8 @@ fn test_package_manifest_schema_contains_zero_pii() {
             url: Some("https://freeleaguepublishing.com/license".to_string()),
             open_gaming_content: true,
         },
-        content_digest: "sha256:ffff1111222233334444555566667777888899990000aaaabbbbccccddddeeee".to_string(),
+        content_digest: "sha256:ffff1111222233334444555566667777888899990000aaaabbbbccccddddeeee"
+            .to_string(),
         files,
         signature: "sig_ed25519_abcdef".to_string(),
     };

@@ -11,21 +11,22 @@ pub use cache::{
     DEFAULT_CACHE_TTL_SECONDS,
 };
 pub use session::{
-    DEFAULT_SESSION_DURATION_MINUTES, EntitlementProvider, MountedCompendiumSession,
-    PeerAccessRequest, PeerAccessResponse, PeerSessionClient, PeerSessionRenewalRequest,
-    RevocationEntry, ScopePolicy, SessionAttestation, SessionManager, SessionRevocationNotice,
+    EntitlementProvider, MountedCompendiumSession, PeerAccessRequest, PeerAccessResponse,
+    PeerSessionClient, PeerSessionRenewalRequest, RevocationEntry, ScopePolicy, SessionAttestation,
+    SessionManager, SessionRevocationNotice, DEFAULT_SESSION_DURATION_MINUTES,
 };
 
-use kryptotome_core::{
-    deserialize_proof_compressed, deserialize_vk_compressed, get_or_init_entitlement_prepared_vk,
-    prepare_verifying_key, string_to_scalar, verify_entitlement_proof_prepared,
-    verify_kzg_opening, verify_multi_pairing_identity, verify_pairing_equality,
-    verify_plonk_batch_opening, EntitlementProofBundle, G1Point, G2Point,
-    Groth16PreparedVerifyingKey, Groth16VerifyingKey, ScalarField, TargetField,
-    error::{KryptotomeError, KryptotomeErrorCode, Result},
-    zkp::{ChallengeNonce, VerificationKey, ZkProof},
-};
 use chrono::{DateTime, Utc};
+use kryptotome_core::{
+    deserialize_proof_compressed, deserialize_vk_compressed,
+    error::{KryptotomeError, KryptotomeErrorCode, Result},
+    get_or_init_entitlement_prepared_vk, prepare_verifying_key, string_to_scalar,
+    verify_entitlement_proof_prepared, verify_kzg_opening, verify_multi_pairing_identity,
+    verify_pairing_equality, verify_plonk_batch_opening,
+    zkp::{ChallengeNonce, VerificationKey, ZkProof},
+    EntitlementProofBundle, G1Point, G2Point, Groth16PreparedVerifyingKey, Groth16VerifyingKey,
+    ScalarField, TargetField,
+};
 use std::collections::HashMap;
 
 /// High-performance embedded zero-knowledge verification engine
@@ -81,7 +82,11 @@ impl EmbeddedVerifier {
     }
 
     /// Registers a publisher verifying key from compressed binary bytes
-    pub fn register_publisher_vk_compressed(&mut self, publisher_id: &str, bytes: &[u8]) -> Result<()> {
+    pub fn register_publisher_vk_compressed(
+        &mut self,
+        publisher_id: &str,
+        bytes: &[u8],
+    ) -> Result<()> {
         let vk = deserialize_vk_compressed(bytes)?;
         self.register_publisher_vk(publisher_id, &vk);
         Ok(())
@@ -104,7 +109,8 @@ impl EmbeddedVerifier {
     /// Checks if a nonce was already consumed, cleaning up expired nonces
     pub fn is_nonce_consumed(&mut self, nonce: &str) -> bool {
         let now = Utc::now();
-        self.consumed_nonces.retain(|_, expires_at| *expires_at > now);
+        self.consumed_nonces
+            .retain(|_, expires_at| *expires_at > now);
         self.consumed_nonces.contains_key(nonce)
     }
 
@@ -164,7 +170,11 @@ impl EmbeddedVerifier {
         let package_scalar = string_to_scalar(&proof.public_inputs.package_id);
         let digest_scalar = string_to_scalar(&proof.public_inputs.content_digest);
         let pubkey_scalar = string_to_scalar(&proof.public_inputs.publisher_pubkey_hash);
-        let commitment_str = proof.public_inputs.holder_commitment.as_deref().unwrap_or("");
+        let commitment_str = proof
+            .public_inputs
+            .holder_commitment
+            .as_deref()
+            .unwrap_or("");
         let commitment_scalar = string_to_scalar(commitment_str);
 
         let public_inputs = vec![
@@ -245,7 +255,8 @@ impl EmbeddedVerifier {
 
         if is_valid {
             self.mark_nonce_consumed(&challenge.nonce, challenge.expires_at);
-            self.cache.mark_verified(&bundle.package_id, &bundle.content_digest);
+            self.cache
+                .mark_verified(&bundle.package_id, &bundle.content_digest);
         }
 
         Ok(is_valid)
@@ -264,6 +275,7 @@ impl EmbeddedVerifier {
     }
 
     /// Fast batched Plonk opening verification (< 2ms)
+    #[allow(clippy::too_many_arguments)]
     pub fn verify_plonk_batch(
         &self,
         w_z: &G1Point,
@@ -274,7 +286,15 @@ impl EmbeddedVerifier {
         challenge_u: &ScalarField,
         srs_g2_x: &G2Point,
     ) -> bool {
-        verify_plonk_batch_opening(w_z, w_zw, folded_commitments, point_z, omega, challenge_u, srs_g2_x)
+        verify_plonk_batch_opening(
+            w_z,
+            w_zw,
+            folded_commitments,
+            point_z,
+            omega,
+            challenge_u,
+            srs_g2_x,
+        )
     }
 
     /// Evaluates a multi-pairing: prod_{i} e(P_i, Q_i) into target field GT
@@ -305,7 +325,8 @@ impl EmbeddedVerifier {
 
     /// Invalidates entitlement for a specific package
     pub fn invalidate_package(&mut self, package_id: &str) -> bool {
-        self.cache.invalidate_package(package_id, InvalidationReason::ManualEviction)
+        self.cache
+            .invalidate_package(package_id, InvalidationReason::ManualEviction)
     }
 
     /// Invalidates entitlement when package assets are reloaded
@@ -314,8 +335,13 @@ impl EmbeddedVerifier {
     }
 
     /// Invalidates entitlement if local file content digest changed
-    pub fn invalidate_if_digest_mismatch(&mut self, package_id: &str, current_digest: &str) -> bool {
-        self.cache.invalidate_if_digest_mismatch(package_id, current_digest)
+    pub fn invalidate_if_digest_mismatch(
+        &mut self,
+        package_id: &str,
+        current_digest: &str,
+    ) -> bool {
+        self.cache
+            .invalidate_if_digest_mismatch(package_id, current_digest)
     }
 
     /// Exits the current active game session and purges unlocked compendiums
@@ -340,7 +366,8 @@ impl EmbeddedVerifier {
 
     /// Configures the default TTL duration in seconds
     pub fn set_cache_ttl_seconds(&mut self, seconds: i64) {
-        self.cache.set_default_ttl(chrono::Duration::seconds(seconds));
+        self.cache
+            .set_default_ttl(chrono::Duration::seconds(seconds));
     }
 
     /// Returns a reference to the internal entitlement cache
@@ -366,6 +393,6 @@ mod tests {
         let (_, vk) = kryptotome_core::get_or_init_entitlement_setup();
         verifier.register_publisher_vk("publisher-1", vk);
         let pvk = verifier.resolve_pvk(Some("publisher-1"));
-        assert!(pvk.vk.gamma_abc_g1.len() > 0);
+        assert!(!pvk.vk.gamma_abc_g1.is_empty());
     }
 }

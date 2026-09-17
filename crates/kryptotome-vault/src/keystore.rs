@@ -136,11 +136,7 @@ pub struct EncryptedKeystore {
 
 impl EncryptedKeystore {
     /// Encrypts a Keyring using a passphrase and selected cipher (using recommended KDF settings)
-    pub fn encrypt(
-        keyring: &Keyring,
-        passphrase: &str,
-        cipher: EncryptionCipher,
-    ) -> Result<Self> {
+    pub fn encrypt(keyring: &Keyring, passphrase: &str, cipher: EncryptionCipher) -> Result<Self> {
         Self::encrypt_with_params(keyring, passphrase, cipher, KdfParams::recommended())
     }
 
@@ -163,28 +159,29 @@ impl EncryptedKeystore {
                     }
                 })?;
                 let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
-                let ct = cipher_engine
-                    .encrypt(&nonce, plaintext)
-                    .map_err(|e| KryptotomeError::Detailed {
+                let ct = cipher_engine.encrypt(&nonce, plaintext).map_err(|e| {
+                    KryptotomeError::Detailed {
                         code: KryptotomeErrorCode::Kryp604KeyCustodyError,
                         message: format!("AES-256-GCM encryption failed: {}", e),
-                    })?;
+                    }
+                })?;
                 (nonce.to_vec(), ct)
             }
             EncryptionCipher::ChaCha20Poly1305 => {
-                let cipher_engine = ChaCha20Poly1305::new_from_slice(&derived_key).map_err(|e| {
+                let cipher_engine =
+                    ChaCha20Poly1305::new_from_slice(&derived_key).map_err(|e| {
+                        KryptotomeError::Detailed {
+                            code: KryptotomeErrorCode::Kryp604KeyCustodyError,
+                            message: format!("Invalid ChaCha20 key: {}", e),
+                        }
+                    })?;
+                let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+                let ct = cipher_engine.encrypt(&nonce, plaintext).map_err(|e| {
                     KryptotomeError::Detailed {
                         code: KryptotomeErrorCode::Kryp604KeyCustodyError,
-                        message: format!("Invalid ChaCha20 key: {}", e),
+                        message: format!("ChaCha20-Poly1305 encryption failed: {}", e),
                     }
                 })?;
-                let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
-                let ct = cipher_engine
-                    .encrypt(&nonce, plaintext)
-                    .map_err(|e| KryptotomeError::Detailed {
-                        code: KryptotomeErrorCode::Kryp604KeyCustodyError,
-                        message: format!("ChaCha20-Poly1305 encryption failed: {}", e),
-                    })?;
                 (nonce.to_vec(), ct)
             }
         };
@@ -225,38 +222,39 @@ impl EncryptedKeystore {
                     }
                 })?;
                 let nonce = AesNonce::from_slice(&nonce_bytes);
-                cipher_engine.decrypt(nonce, ciphertext.as_ref()).map_err(|_| {
-                    KryptotomeError::Detailed {
+                cipher_engine
+                    .decrypt(nonce, ciphertext.as_ref())
+                    .map_err(|_| KryptotomeError::Detailed {
                         code: KryptotomeErrorCode::Kryp602VaultDecryptionFailed,
                         message: "Invalid passphrase or corrupted AES-256-GCM keystore".to_string(),
-                    }
-                })?
+                    })?
             }
             EncryptionCipher::ChaCha20Poly1305 => {
-                let cipher_engine = ChaCha20Poly1305::new_from_slice(&derived_key).map_err(|e| {
-                    KryptotomeError::Detailed {
-                        code: KryptotomeErrorCode::Kryp604KeyCustodyError,
-                        message: format!("Invalid ChaCha20 key: {}", e),
-                    }
-                })?;
+                let cipher_engine =
+                    ChaCha20Poly1305::new_from_slice(&derived_key).map_err(|e| {
+                        KryptotomeError::Detailed {
+                            code: KryptotomeErrorCode::Kryp604KeyCustodyError,
+                            message: format!("Invalid ChaCha20 key: {}", e),
+                        }
+                    })?;
                 let nonce = ChaChaNonce::from_slice(&nonce_bytes);
-                cipher_engine.decrypt(nonce, ciphertext.as_ref()).map_err(|_| {
-                    KryptotomeError::Detailed {
+                cipher_engine
+                    .decrypt(nonce, ciphertext.as_ref())
+                    .map_err(|_| KryptotomeError::Detailed {
                         code: KryptotomeErrorCode::Kryp602VaultDecryptionFailed,
-                        message: "Invalid passphrase or corrupted ChaCha20-Poly1305 keystore".to_string(),
-                    }
-                })?
+                        message: "Invalid passphrase or corrupted ChaCha20-Poly1305 keystore"
+                            .to_string(),
+                    })?
             }
         };
 
         derived_key.zeroize();
 
-        let keyring_res = Keyring::from_secret_bytes(&decrypted_secret).map_err(|e| {
-            KryptotomeError::Detailed {
+        let keyring_res =
+            Keyring::from_secret_bytes(&decrypted_secret).map_err(|e| KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp604KeyCustodyError,
                 message: e,
-            }
-        });
+            });
 
         decrypted_secret.zeroize();
         keyring_res
@@ -278,13 +276,22 @@ impl EncryptedKeystore {
         })
     }
 
-    /// Saves keystore to a file on disk
+    /// Saves keystore to a file on disk with owner-only permissions (0600 on Unix)
     pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<()> {
+        let path = path.as_ref();
         let json = self.to_json()?;
         fs::write(path, json).map_err(|e| KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp902IoError,
             message: format!("Failed to save encrypted keystore to file: {}", e),
-        })
+        })?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+        }
+
+        Ok(())
     }
 
     /// Loads encrypted keystore from a file on disk
@@ -303,7 +310,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 
 fn hex_decode(s: &str) -> Result<Vec<u8>> {
     let s = s.trim();
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return Err(KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp604KeyCustodyError,
             message: "Invalid hex string length in keystore".to_string(),
@@ -410,9 +417,20 @@ mod tests {
 
         // File roundtrip in temporary directory
         let temp_dir = std::env::temp_dir();
-        let file_path = temp_dir.join(format!("kryptotome_test_keystore_{}.json", keyring.key_id.replace(':', "_")));
+        let file_path = temp_dir.join(format!(
+            "kryptotome_test_keystore_{}.json",
+            keyring.key_id.replace(':', "_")
+        ));
 
         keystore.save_to_file(&file_path).unwrap();
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::metadata(&file_path).unwrap().permissions();
+            assert_eq!(perms.mode() & 0o777, 0o600);
+        }
+
         let loaded = EncryptedKeystore::load_from_file(&file_path).unwrap();
         assert_eq!(keystore, loaded);
 

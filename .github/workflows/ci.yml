@@ -40,11 +40,14 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Check Rust Formatting
+        run: cargo fmt --check
+
       - name: Run Cargo Test
         run: cargo test --workspace --verbose
 
       - name: Run Cargo Clippy
-        run: cargo clippy --all-targets
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
   node-tests:
     name: TypeScript & Node Testbeds (${{ matrix.node-version }} on ${{ matrix.os }})
@@ -79,6 +82,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
+      - name: Rust Dependency Audit
+        run: cargo audit
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

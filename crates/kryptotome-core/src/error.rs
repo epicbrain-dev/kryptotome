@@ -306,8 +306,12 @@ impl KryptotomeError {
             Self::Detailed { code, .. } => *code,
             Self::W3cComplianceError(_) => KryptotomeErrorCode::Kryp101InvalidContext,
             Self::CredentialRevoked(_) => KryptotomeErrorCode::Kryp107CredentialRevoked,
-            Self::SignatureVerificationFailed(_) => KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
-            Self::ZkProofVerificationFailed(_) => KryptotomeErrorCode::Kryp301ZkProofVerificationFailed,
+            Self::SignatureVerificationFailed(_) => {
+                KryptotomeErrorCode::Kryp201SignatureVerificationFailed
+            }
+            Self::ZkProofVerificationFailed(_) => {
+                KryptotomeErrorCode::Kryp301ZkProofVerificationFailed
+            }
             Self::InvalidChallenge(_) => KryptotomeErrorCode::Kryp401ChallengeExpired,
             Self::InvalidTimeBounds(_) => KryptotomeErrorCode::Kryp104InvalidTemporalBounds,
             Self::DigestMismatch { .. } => KryptotomeErrorCode::Kryp501DigestMismatch,
@@ -319,7 +323,6 @@ impl KryptotomeError {
         }
     }
 }
-
 
 pub type Result<T> = std::result::Result<T, KryptotomeError>;
 
@@ -337,7 +340,13 @@ mod tests {
             code: KryptotomeErrorCode::Kryp301ZkProofVerificationFailed,
             message: "Pairing check returned false".to_string(),
         };
-        assert_eq!(err.code(), KryptotomeErrorCode::Kryp301ZkProofVerificationFailed);
-        assert_eq!(format!("{}", err), "[KRYP-301] Pairing check returned false");
+        assert_eq!(
+            err.code(),
+            KryptotomeErrorCode::Kryp301ZkProofVerificationFailed
+        );
+        assert_eq!(
+            format!("{}", err),
+            "[KRYP-301] Pairing check returned false"
+        );
     }
 }

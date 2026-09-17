@@ -79,7 +79,13 @@ impl CompendiumScanner {
 
         let mut discovered = Vec::new();
         let mut visited_paths = HashSet::new();
-        Self::discover_files_recursive(root_dir, root_dir, &mut discovered, &mut visited_paths, &discovery_pb)?;
+        Self::discover_files_recursive(
+            root_dir,
+            root_dir,
+            &mut discovered,
+            &mut visited_paths,
+            &discovery_pb,
+        )?;
 
         // Deterministically sort discovered files by relative path
         discovered.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
@@ -196,7 +202,7 @@ impl CompendiumScanner {
             } else if file_type.is_file() {
                 let rel_path = path
                     .strip_prefix(base_dir)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+                    .map_err(std::io::Error::other)?
                     .to_string_lossy()
                     .replace('\\', "/");
 

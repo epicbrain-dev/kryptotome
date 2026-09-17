@@ -17,7 +17,8 @@ fn make_sample_credential(id: &str, package_id: &str) -> KryptotomeCredential {
     };
     let entitlements = vec![Entitlement {
         package_id: package_id.to_string(),
-        content_digest: "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210".to_string(),
+        content_digest: "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+            .to_string(),
         scope: vec!["ruleset".to_string(), "compendium".to_string()],
     }];
     KryptotomeCredential::new(
@@ -39,11 +40,7 @@ fn test_groth16_verification_pipeline_success() {
 
     let keyring = Keyring::generate();
     let single_nonce = format!("single-use-nonce-{}", rand::random::<u64>());
-    let challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        single_nonce,
-        300,
-    );
+    let challenge = ChallengeNonce::new(package_id.to_string(), single_nonce, 300);
 
     // Vault generates Groth16 proof
     let zk_proof = store
@@ -66,7 +63,10 @@ fn test_groth16_verification_pipeline_success() {
 
     println!("Groth16 verification latency: {:?}", duration);
     assert!(is_valid, "Valid Groth16 proof must verify");
-    assert!(verifier.is_package_unlocked(package_id), "Package must be unlocked after verification");
+    assert!(
+        verifier.is_package_unlocked(package_id),
+        "Package must be unlocked after verification"
+    );
 
     if !cfg!(debug_assertions) {
         assert!(
@@ -86,11 +86,7 @@ fn test_groth16_bundle_verification_pipeline() {
 
     let keyring = Keyring::generate();
     let bundle_nonce = format!("nonce-bundle-{}", rand::random::<u64>());
-    let challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        bundle_nonce,
-        300,
-    );
+    let challenge = ChallengeNonce::new(package_id.to_string(), bundle_nonce, 300);
 
     // Prover creates presentation bundle
     let bundle = store
@@ -108,7 +104,10 @@ fn test_groth16_bundle_verification_pipeline() {
 
     println!("Groth16 bundle verification latency: {:?}", duration);
     assert!(is_valid, "Valid bundle must verify");
-    assert!(verifier.is_package_unlocked(package_id), "Package must be unlocked");
+    assert!(
+        verifier.is_package_unlocked(package_id),
+        "Package must be unlocked"
+    );
 
     if !cfg!(debug_assertions) {
         assert!(
@@ -128,11 +127,7 @@ fn test_verification_fails_on_expired_challenge() {
 
     let keyring = Keyring::generate();
     let expired_nonce = format!("nonce-expired-{}", rand::random::<u64>());
-    let valid_challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        expired_nonce.clone(),
-        300,
-    );
+    let valid_challenge = ChallengeNonce::new(package_id.to_string(), expired_nonce.clone(), 300);
     let zk_proof = store
         .create_proof_for_challenge(&keyring, &valid_challenge)
         .expect("Prover must succeed");
@@ -159,7 +154,10 @@ fn test_verification_fails_on_expired_challenge() {
         KryptotomeError::Detailed { code, .. } => {
             assert_eq!(code, KryptotomeErrorCode::Kryp401ChallengeExpired);
         }
-        _ => panic!("Expected Detailed KryptotomeError with Kryp401, got {:?}", err),
+        _ => panic!(
+            "Expected Detailed KryptotomeError with Kryp401, got {:?}",
+            err
+        ),
     }
 }
 
@@ -172,11 +170,7 @@ fn test_verification_fails_on_package_mismatch() {
 
     let keyring = Keyring::generate();
     let mismatch_nonce = format!("nonce-mismatch-{}", rand::random::<u64>());
-    let challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        mismatch_nonce.clone(),
-        300,
-    );
+    let challenge = ChallengeNonce::new(package_id.to_string(), mismatch_nonce.clone(), 300);
     let zk_proof = store
         .create_proof_for_challenge(&keyring, &challenge)
         .expect("Prover must succeed");
@@ -201,7 +195,10 @@ fn test_verification_fails_on_package_mismatch() {
         KryptotomeError::Detailed { code, .. } => {
             assert_eq!(code, KryptotomeErrorCode::Kryp403ChallengePackageMismatch);
         }
-        _ => panic!("Expected Detailed KryptotomeError with Kryp403, got {:?}", err),
+        _ => panic!(
+            "Expected Detailed KryptotomeError with Kryp403, got {:?}",
+            err
+        ),
     }
 }
 
@@ -214,11 +211,7 @@ fn test_verification_fails_on_tampered_proof_bytes() {
 
     let keyring = Keyring::generate();
     let tamper_nonce = format!("nonce-tamper-{}", rand::random::<u64>());
-    let challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        tamper_nonce,
-        300,
-    );
+    let challenge = ChallengeNonce::new(package_id.to_string(), tamper_nonce, 300);
     let mut zk_proof = store
         .create_proof_for_challenge(&keyring, &challenge)
         .expect("Prover must succeed");
@@ -234,7 +227,7 @@ fn test_verification_fails_on_tampered_proof_bytes() {
 
     let res = verifier.verify_zk_proof(&vk, &challenge, &zk_proof);
     // Either deserialization error or invalid pairing result
-    assert!(res.is_err() || res.unwrap() == false);
+    assert!(res.is_err() || !res.unwrap());
 }
 
 #[test]
@@ -296,7 +289,8 @@ fn test_plonk_batch_opening_evaluation() {
     let folded_commitments = (lhs - rhs_part).into_affine();
 
     let start = Instant::now();
-    let valid = verifier.verify_plonk_batch(&w_z, &w_zw, &folded_commitments, &z, &omega, &u, &srs_g2_x);
+    let valid =
+        verifier.verify_plonk_batch(&w_z, &w_zw, &folded_commitments, &z, &omega, &u, &srs_g2_x);
     let duration = start.elapsed();
 
     println!("Batched Plonk opening verification latency: {:?}", duration);
@@ -320,11 +314,7 @@ fn test_verification_latency_target_sub_10ms() {
 
     let keyring = Keyring::generate();
     let bench_nonce = format!("nonce-bench-{}", rand::random::<u64>());
-    let challenge = ChallengeNonce::new(
-        package_id.to_string(),
-        bench_nonce,
-        300,
-    );
+    let challenge = ChallengeNonce::new(package_id.to_string(), bench_nonce, 300);
 
     let zk_proof = store
         .create_proof_for_challenge(&keyring, &challenge)
@@ -424,7 +414,9 @@ fn test_cache_package_reload_and_digest_invalidation_rule() {
 #[test]
 fn test_cache_game_session_exit_invalidation_rule() {
     let mut verifier = EmbeddedVerifier::new();
-    verifier.cache_mut().set_active_session_id(Some("table-session-1234".to_string()));
+    verifier
+        .cache_mut()
+        .set_active_session_id(Some("table-session-1234".to_string()));
 
     verifier.cache_mut().mark_verified("pkg-1", "digest-1");
     verifier.cache_mut().mark_verified("pkg-2", "digest-2");

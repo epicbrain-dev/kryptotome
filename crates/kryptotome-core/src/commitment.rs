@@ -154,7 +154,10 @@ impl PedersenCommitmentScheme {
 
     /// Maps arbitrary secret key bytes (e.g. Ed25519 seed or master key) to a field scalar
     /// and computes the commitment with a fresh random blinding factor.
-    pub fn commit_secret_bytes(&self, secret_bytes: &[u8]) -> (PedersenCommitment, ScalarField, ScalarField) {
+    pub fn commit_secret_bytes(
+        &self,
+        secret_bytes: &[u8],
+    ) -> (PedersenCommitment, ScalarField, ScalarField) {
         let secret_scalar = scalar_from_bytes(secret_bytes);
         let blinding = random_scalar();
         let commitment = self.commit(&secret_scalar, &blinding);
@@ -185,7 +188,7 @@ fn derive_generator_h() -> G1Point {
     loop {
         let mut hasher = Sha256::new();
         hasher.update(PEDERSEN_H_DOMAIN);
-        hasher.update(&counter.to_be_bytes());
+        hasher.update(counter.to_be_bytes());
         let hash_output = hasher.finalize();
 
         // Interpret hash output as scalar multiplier for secondary generator
@@ -215,7 +218,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 }
 
 fn hex_decode(s: &str) -> Result<Vec<u8>> {
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return Err(KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp901SerializationError,
             message: "Odd length hex string".to_string(),

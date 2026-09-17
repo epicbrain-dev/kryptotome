@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-09-17
+
+### Production Hardening, Environmental Compatibility & Security Release
+
+This release delivers major cross-platform portability enhancements, security fixes, and build optimizations to guarantee identical and secure behavior across headless Linux, Docker, desktop environments, legacy Node LTS versions, and modern web bundlers.
+
+### Added
+- **Platform Keyring Fallback (`kryptotome-vault`)**: Introduced `KeyringMode::NativeWithFallback` and `PlatformKeyring::with_fallback()` / `PlatformKeyring::with_fallback_and_service()`. If the underlying platform secret service or OS keychain daemon is unavailable (e.g., headless Linux, Docker containers, WSL, CI runners), operations seamlessly fall back to an in-memory store without runtime failure.
+- **Web Worker Bundler Factory (`@kryptotome/sdk`)**: Added `workerFactory?: () => any | Promise<any>` to `WasmWorkerOptions`, enabling direct instantiation of workers bundled via Vite, Webpack, Rollup, or Tauri.
+- **Merchant Bridge CORS Proxy Options (`@kryptotome/bridge`)**: Documented browser CORS constraints for client-side VTTs and frontends connecting to `itch.io` and `drivethrurpg.com`, with examples for routing through reverse proxies via `baseUrl` or custom `fetchFn`.
+
+### Changed & Fixed
+- **Security: Archive Path Traversal / Zip-Slip Defense (`kryptotome-cli`)**: Hardened `.ktome` package bundle unpacking in `unpack_bundle` by validating every archive entry path. Any entry with parent directory traversal (`..`), root paths, or prefix components is rejected immediately with error `KRYP-106`.
+- **Security: Restrictive Unix File Permissions (`kryptotome-vault`)**: Enforced strict `0600` permissions (read/write only by owner) when writing sensitive encrypted keystores (`.keystore.json`), vault stores (`.vault.json`), and backup envelopes (`.kryptotome-vault.enc`) on Unix systems.
+- **Portability: Synchronous WASM Loading on Node.js 18 & 20 LTS (`@kryptotome/sdk`)**: Added dynamic fallback to `createRequire(import.meta.url)` in `loadWasmFromNodeFsSync` when `process.getBuiltinModule` is absent, preventing runtime errors on older LTS versions while avoiding bundling `node:module` into browser targets.
+- **Linter & Code Quality**: Enforced strict zero-warning policy across the workspace (`cargo clippy --workspace --all-targets -- -D warnings`), formatted all Rust files with `cargo fmt`, and integrated `cargo-audit` and `cargo fmt --check` into automated GitHub Actions CI gates.
+
+---
+
 ## [1.0.0] - 2026-09-16
 
 ### Initial Production Protocol Release (v1.0.0)

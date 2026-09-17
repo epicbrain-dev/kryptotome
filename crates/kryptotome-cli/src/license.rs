@@ -102,14 +102,20 @@ pub fn validate_license_metadata(license: &PackageLicense) -> Result<OpenGameLic
     if url.is_empty() {
         return Err(KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp106InvalidManifestSchema,
-            message: format!("License URL cannot be empty for license type '{}'", license.r#type),
+            message: format!(
+                "License URL cannot be empty for license type '{}'",
+                license.r#type
+            ),
         });
     }
 
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err(KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp106InvalidManifestSchema,
-            message: format!("Invalid license URI format '{}'. Must be an http(s) URL", url),
+            message: format!(
+                "Invalid license URI format '{}'. Must be an http(s) URL",
+                url
+            ),
         });
     }
 
@@ -127,7 +133,9 @@ pub fn validate_license_metadata(license: &PackageLicense) -> Result<OpenGameLic
             if license.attribution.trim().is_empty() {
                 return Err(KryptotomeError::Detailed {
                     code: KryptotomeErrorCode::Kryp106InvalidManifestSchema,
-                    message: "Creative Commons CC-BY-4.0 license requires non-empty attribution metadata".to_string(),
+                    message:
+                        "Creative Commons CC-BY-4.0 license requires non-empty attribution metadata"
+                            .to_string(),
                 });
             }
         }
@@ -138,7 +146,8 @@ pub fn validate_license_metadata(license: &PackageLicense) -> Result<OpenGameLic
             if license.attribution.trim().is_empty() {
                 return Err(KryptotomeError::Detailed {
                     code: KryptotomeErrorCode::Kryp106InvalidManifestSchema,
-                    message: "Custom-Open license requires non-empty attribution metadata".to_string(),
+                    message: "Custom-Open license requires non-empty attribution metadata"
+                        .to_string(),
                 });
             }
         }
@@ -153,13 +162,34 @@ mod tests {
 
     #[test]
     fn test_license_parsing() {
-        assert_eq!(OpenGameLicenseType::from_str("ORC-1.0").unwrap(), OpenGameLicenseType::Orc1_0);
-        assert_eq!(OpenGameLicenseType::from_str("orc").unwrap(), OpenGameLicenseType::Orc1_0);
-        assert_eq!(OpenGameLicenseType::from_str("CC-BY-4.0").unwrap(), OpenGameLicenseType::CcBy4_0);
-        assert_eq!(OpenGameLicenseType::from_str("cc-by").unwrap(), OpenGameLicenseType::CcBy4_0);
-        assert_eq!(OpenGameLicenseType::from_str("CC0-1.0").unwrap(), OpenGameLicenseType::Cc0_1_0);
-        assert_eq!(OpenGameLicenseType::from_str("cc0").unwrap(), OpenGameLicenseType::Cc0_1_0);
-        assert_eq!(OpenGameLicenseType::from_str("Custom-Open").unwrap(), OpenGameLicenseType::CustomOpen);
+        assert_eq!(
+            OpenGameLicenseType::from_str("ORC-1.0").unwrap(),
+            OpenGameLicenseType::Orc1_0
+        );
+        assert_eq!(
+            OpenGameLicenseType::from_str("orc").unwrap(),
+            OpenGameLicenseType::Orc1_0
+        );
+        assert_eq!(
+            OpenGameLicenseType::from_str("CC-BY-4.0").unwrap(),
+            OpenGameLicenseType::CcBy4_0
+        );
+        assert_eq!(
+            OpenGameLicenseType::from_str("cc-by").unwrap(),
+            OpenGameLicenseType::CcBy4_0
+        );
+        assert_eq!(
+            OpenGameLicenseType::from_str("CC0-1.0").unwrap(),
+            OpenGameLicenseType::Cc0_1_0
+        );
+        assert_eq!(
+            OpenGameLicenseType::from_str("cc0").unwrap(),
+            OpenGameLicenseType::Cc0_1_0
+        );
+        assert_eq!(
+            OpenGameLicenseType::from_str("Custom-Open").unwrap(),
+            OpenGameLicenseType::CustomOpen
+        );
         assert!(OpenGameLicenseType::from_str("GPL-3.0").is_err());
     }
 

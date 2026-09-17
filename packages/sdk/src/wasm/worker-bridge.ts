@@ -9,6 +9,12 @@ export interface WasmWorkerOptions {
    */
   workerUrl?: string | URL;
   /**
+   * Optional factory function to instantiate a custom Web Worker or Node Worker.
+   * Recommended for bundlers like Vite, Webpack, or Rollup:
+   * e.g. `workerFactory: () => new Worker(new URL('./worker.js', import.meta.url), { type: 'module' })`
+   */
+  workerFactory?: () => any | Promise<any>;
+  /**
    * Optional pre-existing Web Worker or Node Worker instance.
    */
   worker?: any;
@@ -231,6 +237,10 @@ export class WasmWorkerBridge {
   private async spawnWorker(): Promise<any> {
     if (this.options.worker) {
       return this.options.worker;
+    }
+
+    if (this.options.workerFactory) {
+      return await this.options.workerFactory();
     }
 
     const defaultUrl = this.options.workerUrl ?? new URL('./worker-runtime.js', import.meta.url);

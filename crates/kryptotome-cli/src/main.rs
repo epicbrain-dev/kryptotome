@@ -1,7 +1,5 @@
 use kryptotome_cli::{batch, bundle, license, publisher, scanner};
 
-
-
 use clap::{Parser, Subcommand};
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
@@ -41,16 +39,28 @@ enum Commands {
         #[arg(short = 'a', long, default_value = "sha-256")]
         algorithm: String,
 
-        #[arg(short = 'l', long, default_value = "ORC-1.0", help = "Open gaming license type: ORC-1.0, CC-BY-4.0, CC0-1.0, Custom-Open")]
+        #[arg(
+            short = 'l',
+            long,
+            default_value = "ORC-1.0",
+            help = "Open gaming license type: ORC-1.0, CC-BY-4.0, CC0-1.0, Custom-Open"
+        )]
         license_type: String,
 
-        #[arg(long, help = "Custom license URL (defaults to canonical URI for chosen license type)")]
+        #[arg(
+            long,
+            help = "Custom license URL (defaults to canonical URI for chosen license type)"
+        )]
         license_url: Option<String>,
 
         #[arg(long, help = "License attribution statement / ORC Notice")]
         license_attribution: Option<String>,
 
-        #[arg(long, default_value_t = false, help = "Disable indicatif interactive progress bar")]
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Disable indicatif interactive progress bar"
+        )]
         no_progress: bool,
     },
 
@@ -62,7 +72,11 @@ enum Commands {
         #[arg(short = 'a', long, default_value = "sha-256")]
         algorithm: String,
 
-        #[arg(long, default_value_t = false, help = "Disable indicatif interactive progress bar")]
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Disable indicatif interactive progress bar"
+        )]
         no_progress: bool,
     },
 
@@ -77,7 +91,11 @@ enum Commands {
         #[arg(short, long)]
         dir: Option<PathBuf>,
 
-        #[arg(long, default_value_t = false, help = "Disable indicatif interactive progress bar")]
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Disable indicatif interactive progress bar"
+        )]
         no_progress: bool,
     },
 
@@ -89,7 +107,10 @@ enum Commands {
         #[arg(short, long)]
         output: PathBuf,
 
-        #[arg(long, help = "Optional existing manifest JSON to bundle instead of creating one")]
+        #[arg(
+            long,
+            help = "Optional existing manifest JSON to bundle instead of creating one"
+        )]
         manifest: Option<PathBuf>,
 
         #[arg(short, long)]
@@ -128,7 +149,11 @@ enum Commands {
         #[arg(short, long)]
         output: PathBuf,
 
-        #[arg(long, default_value_t = false, help = "Verify manifest signature and file digests")]
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Verify manifest signature and file digests"
+        )]
         verify: bool,
 
         #[arg(long, default_value_t = false)]
@@ -143,7 +168,11 @@ enum Commands {
         #[arg(long, help = "Path to batch specification JSON file")]
         spec: Option<PathBuf>,
 
-        #[arg(short, long, help = "Output directory for .ktome archives and release summary")]
+        #[arg(
+            short,
+            long,
+            help = "Output directory for .ktome archives and release summary"
+        )]
         output_dir: PathBuf,
 
         #[arg(short = 'n', long, default_value = "Open Gaming Publisher")]
@@ -155,7 +184,11 @@ enum Commands {
         #[arg(short = 'l', long, default_value = "ORC-1.0")]
         license_type: String,
 
-        #[arg(short = 'k', long, help = "Optional 32-byte publisher secret key in hex")]
+        #[arg(
+            short = 'k',
+            long,
+            help = "Optional 32-byte publisher secret key in hex"
+        )]
         secret_key: Option<String>,
 
         #[arg(long, default_value_t = false)]
@@ -191,13 +224,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             no_progress,
         } => {
             let digest_algo: kryptotome_core::DigestAlgorithm = algorithm.parse()?;
-            let license_enum: kryptotome_cli::license::OpenGameLicenseType = license_type.parse()?;
+            let license_enum: kryptotome_cli::license::OpenGameLicenseType =
+                license_type.parse()?;
             let url = license_url.unwrap_or_else(|| license_enum.canonical_url().to_string());
-            let attribution = license_attribution.unwrap_or_else(|| {
-                match license_enum {
-                    kryptotome_cli::license::OpenGameLicenseType::Cc0_1_0 => "".to_string(),
-                    _ => format!("Published by {}", publisher_name),
-                }
+            let attribution = license_attribution.unwrap_or_else(|| match license_enum {
+                kryptotome_cli::license::OpenGameLicenseType::Cc0_1_0 => "".to_string(),
+                _ => format!("Published by {}", publisher_name),
             });
 
             let license = publisher::PackageLicense {
@@ -207,7 +239,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             license.validate()?;
 
-            println!("Signing package '{}' ({}) from {:?} using {}", title, package_id, dir, digest_algo);
+            println!(
+                "Signing package '{}' ({}) from {:?} using {}",
+                title, package_id, dir, digest_algo
+            );
             println!("License: {} ({})", license.r#type, license.url);
             let mut csprng = OsRng;
             let signing_key = SigningKey::generate(&mut csprng);
@@ -234,10 +269,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Algorithm: {}", manifest.digest_algorithm);
             println!("Root content digest: {}", manifest.root_digest);
             println!("Indexed files: {}", manifest.files.len());
-            println!("License: {} - {}", manifest.license.r#type, manifest.license.attribution);
+            println!(
+                "License: {} - {}",
+                manifest.license.r#type, manifest.license.attribution
+            );
         }
 
-        Commands::Digest { dir, algorithm, no_progress } => {
+        Commands::Digest {
+            dir,
+            algorithm,
+            no_progress,
+        } => {
             let digest_algo: kryptotome_core::DigestAlgorithm = algorithm.parse()?;
             let scan_options = scanner::ScanOptions {
                 algorithm: digest_algo,
@@ -249,7 +291,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Algorithm: {}", digest_algo);
             println!("Digest: {}", scan_result.root_digest);
             println!("Indexed files: {}", scan_result.total_files);
-            println!("Total payload: {}", indicatif::HumanBytes(scan_result.total_bytes));
+            println!(
+                "Total payload: {}",
+                indicatif::HumanBytes(scan_result.total_bytes)
+            );
         }
 
         Commands::VerifyManifest {
@@ -258,8 +303,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             dir,
             no_progress,
         } => {
-            println!("Verifying Kryptotome package manifest from {:?}...", manifest);
-            let parsed_manifest = if manifest.extension().map_or(false, |ext| ext == "ktome") {
+            println!(
+                "Verifying Kryptotome package manifest from {:?}...",
+                manifest
+            );
+            let parsed_manifest = if manifest.extension().is_some_and(|ext| ext == "ktome") {
                 println!("Reading embedded manifest.json directly from .ktome archive...");
                 bundle::inspect_ktome_archive(&manifest)?
             } else {
@@ -270,22 +318,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let report = publisher::verify_package_manifest(&parsed_manifest, pubkey.as_deref())?;
             println!("✓ Manifest signature verified successfully!");
             println!("  Package: '{}' ({})", report.package_id, report.version);
-            println!("  Publisher: {} ({})", report.publisher_name, report.publisher_id);
-            println!("  License: {} (Attribution: '{}') [URL: {}]", report.license.r#type, report.license.attribution, report.license.url);
+            println!(
+                "  Publisher: {} ({})",
+                report.publisher_name, report.publisher_id
+            );
+            println!(
+                "  License: {} (Attribution: '{}') [URL: {}]",
+                report.license.r#type, report.license.attribution, report.license.url
+            );
             println!("  Algorithm: {}", report.algorithm);
             println!("  Root content digest: {}", report.root_digest);
             println!("  Verifying key: {}", report.verifying_key_hex);
             println!("  Declared files: {}", parsed_manifest.files.len());
 
             if let Some(compendium_dir) = dir {
-                println!("\nVerifying directory files against manifest from {:?}...", compendium_dir);
-                let dir_report = publisher::verify_package_directory(&parsed_manifest, &compendium_dir, !no_progress)?;
+                println!(
+                    "\nVerifying directory files against manifest from {:?}...",
+                    compendium_dir
+                );
+                let dir_report = publisher::verify_package_directory(
+                    &parsed_manifest,
+                    &compendium_dir,
+                    !no_progress,
+                )?;
                 if dir_report.is_valid {
-                    println!("✓ Directory integrity verified: all {} files match manifest digests!", dir_report.matched_files);
+                    println!(
+                        "✓ Directory integrity verified: all {} files match manifest digests!",
+                        dir_report.matched_files
+                    );
                 } else {
                     println!("✗ Directory integrity check failed!");
                     if !dir_report.root_digest_match {
-                        println!("  Root digest mismatch! Expected {}, computed {}", dir_report.expected_root_digest, dir_report.computed_root_digest);
+                        println!(
+                            "  Root digest mismatch! Expected {}, computed {}",
+                            dir_report.expected_root_digest, dir_report.computed_root_digest
+                        );
                     }
                     if !dir_report.missing_files.is_empty() {
                         println!("  Missing files ({}):", dir_report.missing_files.len());
@@ -294,7 +361,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     if !dir_report.altered_files.is_empty() {
-                        println!("  Altered/corrupted files ({}):", dir_report.altered_files.len());
+                        println!(
+                            "  Altered/corrupted files ({}):",
+                            dir_report.altered_files.len()
+                        );
                         for f in &dir_report.altered_files {
                             println!("    - {}", f);
                         }
@@ -318,25 +388,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             algorithm,
             no_progress,
         } => {
-            println!("Packaging compendium from {:?} into .ktome archive {:?}", dir, output);
+            println!(
+                "Packaging compendium from {:?} into .ktome archive {:?}",
+                dir, output
+            );
             let parsed_manifest = if let Some(man_path) = manifest {
                 let content = std::fs::read_to_string(&man_path)?;
                 serde_json::from_str::<publisher::PackageManifest>(&content)?
             } else {
                 let pkg_id = package_id.unwrap_or_else(|| {
-                    dir.file_name().unwrap_or_default().to_string_lossy().to_string()
+                    dir.file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
                 });
                 let pkg_title = title.unwrap_or_else(|| pkg_id.clone());
                 let pkg_ver = version.unwrap_or_else(|| "1.0.0".to_string());
-                let pub_name = publisher_name.unwrap_or_else(|| "Open Gaming Publisher".to_string());
+                let pub_name =
+                    publisher_name.unwrap_or_else(|| "Open Gaming Publisher".to_string());
                 let digest_algo: kryptotome_core::DigestAlgorithm = algorithm.parse()?;
                 let license_enum: license::OpenGameLicenseType = license_type.parse()?;
                 let url = license_url.unwrap_or_else(|| license_enum.canonical_url().to_string());
-                let attribution = license_attribution.unwrap_or_else(|| {
-                    match license_enum {
-                        license::OpenGameLicenseType::Cc0_1_0 => "".to_string(),
-                        _ => format!("Published by {}", pub_name),
-                    }
+                let attribution = license_attribution.unwrap_or_else(|| match license_enum {
+                    license::OpenGameLicenseType::Cc0_1_0 => "".to_string(),
+                    _ => format!("Published by {}", pub_name),
                 });
 
                 let lic = publisher::PackageLicense {
@@ -354,21 +429,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
 
                 toolchain.build_and_sign_package_with_license(
-                    &pkg_id,
-                    &pkg_title,
-                    &pkg_ver,
-                    &pub_name,
-                    &dir,
-                    scan_opts,
-                    lic,
+                    &pkg_id, &pkg_title, &pkg_ver, &pub_name, &dir, scan_opts, lic,
                 )?
             };
 
-            let report = bundle::build_ktome_archive(&parsed_manifest, &dir, &output, !no_progress)?;
+            let report =
+                bundle::build_ktome_archive(&parsed_manifest, &dir, &output, !no_progress)?;
             println!("✓ Successfully bundled .ktome release archive!");
             println!("  Package: '{}' ({})", report.package_id, report.version);
             println!("  Archive: {:?}", report.archive_path);
-            println!("  Archive size: {}", indicatif::HumanBytes(report.archive_size_bytes));
+            println!(
+                "  Archive size: {}",
+                indicatif::HumanBytes(report.archive_size_bytes)
+            );
             println!("  Total files: {}", report.total_files_bundled);
             println!("  Root digest: {}", report.root_digest);
         }
@@ -387,11 +460,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  Files extracted: {}", report.extracted_files);
 
             if let Some(man_rep) = report.manifest_verified {
-                println!("✓ Manifest signature verified against key: {}", man_rep.verifying_key_hex);
+                println!(
+                    "✓ Manifest signature verified against key: {}",
+                    man_rep.verifying_key_hex
+                );
             }
             if let Some(dir_rep) = report.directory_integrity {
                 if dir_rep.is_valid {
-                    println!("✓ Extracted file integrity verified: all {} files match digests", dir_rep.matched_files);
+                    println!(
+                        "✓ Extracted file integrity verified: all {} files match digests",
+                        dir_rep.matched_files
+                    );
                 }
             }
         }
@@ -406,18 +485,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             secret_key,
             no_progress,
         } => {
-            println!("Executing batch signing and release packaging into {:?}...", output_dir);
+            println!(
+                "Executing batch signing and release packaging into {:?}...",
+                output_dir
+            );
             let batch_spec = if let Some(spec_path) = spec {
                 let content = std::fs::read_to_string(&spec_path)?;
                 serde_json::from_str::<batch::BatchSignSpec>(&content)?
             } else if let Some(src_dir) = source_dir {
                 batch::auto_discover_batch_spec(&src_dir, &publisher_name, &version, &license_type)?
             } else {
-                return Err("Either --source-dir or --spec must be specified for batch signing".into());
+                return Err(
+                    "Either --source-dir or --spec must be specified for batch signing".into(),
+                );
             };
 
             let signing_key = if let Some(key_hex) = secret_key {
-                let bytes = publisher::hex_decode(&key_hex).map_err(|_| "Invalid secret key hex")?;
+                let bytes =
+                    publisher::hex_decode(&key_hex).map_err(|_| "Invalid secret key hex")?;
                 if bytes.len() != 32 {
                     return Err("Secret key must be 32 bytes".into());
                 }
@@ -428,14 +513,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None
             };
 
-            let report = batch::execute_batch_sign(batch_spec, &output_dir, signing_key, !no_progress)?;
+            let report =
+                batch::execute_batch_sign(batch_spec, &output_dir, signing_key, !no_progress)?;
             println!("✓ Batch signing completed successfully!");
-            println!("  Publisher: {} ({})", report.publisher_name, report.publisher_public_key);
-            println!("  Total packages signed and bundled: {}", report.total_packages);
+            println!(
+                "  Publisher: {} ({})",
+                report.publisher_name, report.publisher_public_key
+            );
+            println!(
+                "  Total packages signed and bundled: {}",
+                report.total_packages
+            );
             for pkg in &report.packages {
-                println!("  • {} ({}) -> {:?} ({})", pkg.title, pkg.package_id, pkg.bundle_path, indicatif::HumanBytes(pkg.bundle_size_bytes));
+                println!(
+                    "  • {} ({}) -> {:?} ({})",
+                    pkg.title,
+                    pkg.package_id,
+                    pkg.bundle_path,
+                    indicatif::HumanBytes(pkg.bundle_size_bytes)
+                );
             }
-            println!("  Release summary saved to {:?}", output_dir.join("batch-summary.json"));
+            println!(
+                "  Release summary saved to {:?}",
+                output_dir.join("batch-summary.json")
+            );
         }
 
         Commands::Keygen => {

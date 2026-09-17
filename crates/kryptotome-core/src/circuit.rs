@@ -91,6 +91,7 @@ impl EntitlementCircuit {
     }
 
     /// Creates a populated circuit with public inputs and private witnesses for proving
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         challenge_nonce: ScalarField,
         package_id: ScalarField,
@@ -123,7 +124,8 @@ impl ConstraintSynthesizer<ScalarField> for EntitlementCircuit {
         // 1. Allocate Public Inputs
         // -----------------------------------------------------------------
         let nonce_var = FpVar::new_input(cs.clone(), || {
-            self.challenge_nonce.ok_or(SynthesisError::AssignmentMissing)
+            self.challenge_nonce
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
 
         let package_id_var = FpVar::new_input(cs.clone(), || {
@@ -135,11 +137,13 @@ impl ConstraintSynthesizer<ScalarField> for EntitlementCircuit {
         })?;
 
         let publisher_pubkey_var = FpVar::new_input(cs.clone(), || {
-            self.publisher_pubkey.ok_or(SynthesisError::AssignmentMissing)
+            self.publisher_pubkey
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
 
         let holder_commitment_var = FpVar::new_input(cs.clone(), || {
-            self.holder_commitment.ok_or(SynthesisError::AssignmentMissing)
+            self.holder_commitment
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
 
         // -----------------------------------------------------------------
@@ -150,11 +154,13 @@ impl ConstraintSynthesizer<ScalarField> for EntitlementCircuit {
         })?;
 
         let blinding_var = FpVar::new_witness(cs.clone(), || {
-            self.blinding_factor.ok_or(SynthesisError::AssignmentMissing)
+            self.blinding_factor
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
 
         let signature_var = FpVar::new_witness(cs.clone(), || {
-            self.signature_witness.ok_or(SynthesisError::AssignmentMissing)
+            self.signature_witness
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
 
         // -----------------------------------------------------------------
@@ -182,7 +188,8 @@ impl ConstraintSynthesizer<ScalarField> for EntitlementCircuit {
         //    Sig constraint: signature_witness * publisher_pubkey == Hash(Package, Digest, Commitment)
         // -----------------------------------------------------------------
         let domain_tag = FpVar::Constant(ScalarField::from(0x74727067_u64)); // 'trpg'
-        let message_binding = &domain_tag + &package_id_var + &content_digest_var + &holder_commitment_var;
+        let message_binding =
+            &domain_tag + &package_id_var + &content_digest_var + &holder_commitment_var;
 
         let sig_product = &signature_var * &publisher_pubkey_var;
         sig_product.enforce_equal(&message_binding)?;
@@ -230,10 +237,12 @@ pub fn compute_circuit_signature_witness(
     let message = domain + *package_id + *content_digest + *commitment;
 
     // signature_witness = message * (publisher_pubkey)^(-1)
-    let pubkey_inv = publisher_pubkey.inverse().ok_or_else(|| KryptotomeError::Detailed {
-        code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
-        message: "Publisher public key is not invertible".to_string(),
-    })?;
+    let pubkey_inv = publisher_pubkey
+        .inverse()
+        .ok_or_else(|| KryptotomeError::Detailed {
+            code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
+            message: "Publisher public key is not invertible".to_string(),
+        })?;
 
     Ok(message * pubkey_inv)
 }
@@ -259,7 +268,10 @@ pub fn create_entitlement_proof<R: RngCore + CryptoRng>(
 ) -> Result<Proof<Bls12_381>> {
     Groth16::<Bls12_381>::prove(pk, circuit, rng).map_err(|e| KryptotomeError::Detailed {
         code: KryptotomeErrorCode::Kryp305ConstraintUnsatisfied,
-        message: format!("Prover witness failed to satisfy circuit constraints: {}", e),
+        message: format!(
+            "Prover witness failed to satisfy circuit constraints: {}",
+            e
+        ),
     })
 }
 
@@ -501,11 +513,9 @@ pub fn serialize_pk_compressed(pk: &ProvingKey<Bls12_381>) -> Result<Vec<u8>> {
 
 /// Deserializes a Groth16 proving key from compressed binary format
 pub fn deserialize_pk_compressed(bytes: &[u8]) -> Result<ProvingKey<Bls12_381>> {
-    ProvingKey::<Bls12_381>::deserialize_compressed(bytes).map_err(|e| {
-        KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp303MalformedProofEncoding,
-            message: format!("Failed to deserialize Groth16 proving key: {}", e),
-        }
+    ProvingKey::<Bls12_381>::deserialize_compressed(bytes).map_err(|e| KryptotomeError::Detailed {
+        code: KryptotomeErrorCode::Kryp303MalformedProofEncoding,
+        message: format!("Failed to deserialize Groth16 proving key: {}", e),
     })
 }
 
@@ -532,18 +542,19 @@ pub fn serialize_public_inputs_compressed(inputs: &[ScalarField]) -> Result<Vec<
 /// Deserializes public inputs from compressed binary format
 pub fn deserialize_public_inputs_compressed(bytes: &[u8]) -> Result<Vec<ScalarField>> {
     let mut cursor = bytes;
-    let len = u32::deserialize_compressed(&mut cursor).map_err(|e| {
-        KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp303MalformedProofEncoding,
-            message: format!("Failed to read public inputs length: {}", e),
-        }
+    let len = u32::deserialize_compressed(&mut cursor).map_err(|e| KryptotomeError::Detailed {
+        code: KryptotomeErrorCode::Kryp303MalformedProofEncoding,
+        message: format!("Failed to read public inputs length: {}", e),
     })? as usize;
 
     // Reject unbounded allocations: each scalar is 32 bytes, maximum circuit input count is bounded
     if len > cursor.len() / 32 || len > 256 {
         return Err(KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp303MalformedProofEncoding,
-            message: format!("Declared public inputs length {} exceeds input payload bounds", len),
+            message: format!(
+                "Declared public inputs length {} exceeds input payload bounds",
+                len
+            ),
         });
     }
 
@@ -881,7 +892,9 @@ mod tests {
 
         let nonce = random_scalar();
         let package_id = string_to_scalar("paizo/pathfinder-player-core");
-        let content_digest = string_to_scalar("sha256:73a85757532b62fd82a3b611d03ce5de2f2a3491f9b47568574afda042faeb8f");
+        let content_digest = string_to_scalar(
+            "sha256:73a85757532b62fd82a3b611d03ce5de2f2a3491f9b47568574afda042faeb8f",
+        );
         let publisher_pubkey = random_scalar();
 
         let holder_secret = random_scalar();
@@ -910,7 +923,10 @@ mod tests {
         // 1. Verify R1CS constraints are satisfied
         let cs = ConstraintSystem::<ScalarField>::new_ref();
         circuit.clone().generate_constraints(cs.clone()).unwrap();
-        assert!(cs.is_satisfied().unwrap(), "Circuit constraints must be satisfied with valid witness");
+        assert!(
+            cs.is_satisfied().unwrap(),
+            "Circuit constraints must be satisfied with valid witness"
+        );
 
         // 2. Run Groth16 setup, prove, and verify
         let (pk, vk) = generate_entitlement_setup(&mut csprng).unwrap();
@@ -921,9 +937,15 @@ mod tests {
         println!("Groth16 proof generation duration: {:?}", proof_duration);
         // Requirement: proof generation < 200ms (in release mode)
         if !cfg!(debug_assertions) {
-            assert!(proof_duration.as_millis() < 200, "Proof generation must be < 200ms in release mode");
+            assert!(
+                proof_duration.as_millis() < 200,
+                "Proof generation must be < 200ms in release mode"
+            );
         } else {
-            assert!(proof_duration.as_millis() < 1000, "Proof generation in debug mode");
+            assert!(
+                proof_duration.as_millis() < 1000,
+                "Proof generation in debug mode"
+            );
         }
 
         let public_inputs = vec![
@@ -942,20 +964,33 @@ mod tests {
         assert!(is_valid, "Valid proof must verify successfully");
         // Requirement: verification < 10ms (in release mode)
         if !cfg!(debug_assertions) {
-            assert!(verify_duration.as_millis() < 10, "Verification duration must be < 10ms in release mode");
+            assert!(
+                verify_duration.as_millis() < 10,
+                "Verification duration must be < 10ms in release mode"
+            );
         } else {
-            assert!(verify_duration.as_millis() < 500, "Verification duration in debug mode");
+            assert!(
+                verify_duration.as_millis() < 500,
+                "Verification duration in debug mode"
+            );
         }
 
         // Test prepared verifying key (< 2ms)
         let pvk = prepare_verifying_key(&vk);
         let prep_start = Instant::now();
-        let is_valid_prep = verify_entitlement_proof_prepared(&pvk, &public_inputs, &proof).unwrap();
+        let is_valid_prep =
+            verify_entitlement_proof_prepared(&pvk, &public_inputs, &proof).unwrap();
         let prep_duration = prep_start.elapsed();
-        println!("Groth16 prepared proof verification duration: {:?}", prep_duration);
+        println!(
+            "Groth16 prepared proof verification duration: {:?}",
+            prep_duration
+        );
         assert!(is_valid_prep, "Prepared VK verification must pass");
         if !cfg!(debug_assertions) {
-            assert!(prep_duration.as_millis() < 10, "Prepared VK verification must be < 10ms in release mode");
+            assert!(
+                prep_duration.as_millis() < 10,
+                "Prepared VK verification must be < 10ms in release mode"
+            );
         }
 
         // 3. Test tamper resistance: invalid nonce must fail
@@ -967,7 +1002,10 @@ mod tests {
             holder_commitment,
         ];
         let tampered_res = verify_entitlement_proof(&vk, &tampered_inputs, &proof).unwrap();
-        assert!(!tampered_res, "Tampered challenge nonce must fail verification");
+        assert!(
+            !tampered_res,
+            "Tampered challenge nonce must fail verification"
+        );
     }
 
     #[test]
@@ -977,7 +1015,9 @@ mod tests {
 
         let nonce = random_scalar();
         let package_id = string_to_scalar("paizo/starfinder-core");
-        let content_digest = string_to_scalar("sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890");
+        let content_digest = string_to_scalar(
+            "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+        );
         let publisher_pubkey = random_scalar();
         let holder_secret = random_scalar();
         let blinding = random_scalar();
@@ -1012,14 +1052,22 @@ mod tests {
 
         // 1. Binary compressed proof test: exactly 192 bytes
         let proof_bytes = serialize_proof_compressed(&proof).unwrap();
-        assert_eq!(proof_bytes.len(), 192, "Compressed Groth16 BLS12-381 proof must be exactly 192 bytes");
+        assert_eq!(
+            proof_bytes.len(),
+            192,
+            "Compressed Groth16 BLS12-381 proof must be exactly 192 bytes"
+        );
 
         let proof_deserialized = deserialize_proof_compressed(&proof_bytes).unwrap();
         assert_eq!(proof, proof_deserialized);
 
         // 2. Base64 standard and URL-safe roundtrip
         let b64 = serialize_proof_base64(&proof).unwrap();
-        assert_eq!(b64.len(), 256, "Standard base64 encoded 192-byte proof must be 256 chars");
+        assert_eq!(
+            b64.len(),
+            256,
+            "Standard base64 encoded 192-byte proof must be 256 chars"
+        );
         let proof_from_b64 = deserialize_proof_base64(&b64).unwrap();
         assert_eq!(proof, proof_from_b64);
 
@@ -1072,8 +1120,12 @@ mod tests {
 
         // Compact bytes roundtrip
         let compact_bytes = bundle.to_compact_bytes().unwrap();
-        assert!(compact_bytes.len() < 600, "Compact binary bundle should be < 600 bytes");
-        let bundle_from_compact = EntitlementProofBundle::from_compact_bytes(&compact_bytes).unwrap();
+        assert!(
+            compact_bytes.len() < 600,
+            "Compact binary bundle should be < 600 bytes"
+        );
+        let bundle_from_compact =
+            EntitlementProofBundle::from_compact_bytes(&compact_bytes).unwrap();
         assert_eq!(bundle, bundle_from_compact);
 
         // Base64 presentation token roundtrip

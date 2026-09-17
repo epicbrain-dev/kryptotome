@@ -129,15 +129,19 @@ impl Keyring {
     }
 
     /// Verifies an Ed25519 signature against this Keyring's public key.
-    pub fn verify(&self, message: &[u8], signature: &ed25519_dalek::Signature) -> Result<bool, String> {
+    pub fn verify(
+        &self,
+        message: &[u8],
+        signature: &ed25519_dalek::Signature,
+    ) -> Result<bool, String> {
         let pub_bytes = hex_decode(&self.public_key_hex)?;
         if pub_bytes.len() != 32 {
             return Err("Invalid public key length, expected 32 bytes".to_string());
         }
         let mut arr = [0u8; 32];
         arr.copy_from_slice(&pub_bytes);
-        let verifying_key = VerifyingKey::from_bytes(&arr)
-            .map_err(|e| format!("Invalid public key: {}", e))?;
+        let verifying_key =
+            VerifyingKey::from_bytes(&arr).map_err(|e| format!("Invalid public key: {}", e))?;
         verifying_key
             .verify(message, signature)
             .map(|_| true)
@@ -177,14 +181,13 @@ fn hex_encode(bytes: &[u8]) -> String {
 
 fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
     let s = s.trim();
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return Err("Invalid hex string length".to_string());
     }
     (0..s.len())
         .step_by(2)
         .map(|i| {
-            u8::from_str_radix(&s[i..i + 2], 16)
-                .map_err(|e| format!("Invalid hex byte: {}", e))
+            u8::from_str_radix(&s[i..i + 2], 16).map_err(|e| format!("Invalid hex byte: {}", e))
         })
         .collect()
 }
@@ -212,8 +215,14 @@ mod tests {
         let keyring_from_seed1 = Keyring::from_secret_bytes(&seed).unwrap();
         let keyring_from_seed2 = Keyring::from_secret_bytes(&seed).unwrap();
         assert_eq!(keyring_from_seed1.key_id, keyring_from_seed2.key_id);
-        assert_eq!(keyring_from_seed1.public_key_hex, keyring_from_seed2.public_key_hex);
-        assert_eq!(keyring_from_seed1.secret_bytes(), keyring_from_seed2.secret_bytes());
+        assert_eq!(
+            keyring_from_seed1.public_key_hex,
+            keyring_from_seed2.public_key_hex
+        );
+        assert_eq!(
+            keyring_from_seed1.secret_bytes(),
+            keyring_from_seed2.secret_bytes()
+        );
 
         // 3. Rejection of invalid secret length
         assert!(Keyring::from_secret_bytes(&[0u8; 31]).is_err());
@@ -229,7 +238,10 @@ mod tests {
         let backup_data = keyring.to_backup_data();
         assert_eq!(backup_data.key_id, keyring.key_id);
         assert_eq!(backup_data.public_key_hex, keyring.public_key_hex);
-        assert_eq!(backup_data.secret_bytes_hex, hex_encode(keyring.secret_bytes()));
+        assert_eq!(
+            backup_data.secret_bytes_hex,
+            hex_encode(keyring.secret_bytes())
+        );
 
         let json = serde_json::to_string(&backup_data).unwrap();
         let restored_backup: KeyringBackupData = serde_json::from_str(&json).unwrap();
@@ -257,11 +269,14 @@ mod tests {
 
         // 1. Valid signature generation and verification
         let signature = keyring.sign(message).expect("Signing must succeed");
-        let is_valid = keyring.verify(message, &signature).expect("Verification must succeed");
+        let is_valid = keyring
+            .verify(message, &signature)
+            .expect("Verification must succeed");
         assert!(is_valid, "Valid signature must verify");
 
         // 2. Tampered message fails verification
-        let tampered_message = b"Kryptotome digital entitlement session auth challenge nonce: 000000000";
+        let tampered_message =
+            b"Kryptotome digital entitlement session auth challenge nonce: 000000000";
         assert!(keyring.verify(tampered_message, &signature).is_err());
 
         // 3. Tampered signature fails verification

@@ -17,18 +17,21 @@ struct TestModuleFixture {
 
 impl TestModuleFixture {
     fn new(name: &str) -> Self {
-        let root_dir = std::env::temp_dir().join(format!("ktome_e2e_{}_{}", name, rand::random::<u64>()));
+        let root_dir =
+            std::env::temp_dir().join(format!("ktome_e2e_{}_{}", name, rand::random::<u64>()));
         fs::create_dir_all(&root_dir).expect("Failed to create module root dir");
 
         let rules_dir = root_dir.join("rules");
         fs::create_dir_all(&rules_dir).expect("Failed to create rules dir");
         let mut f1 = File::create(rules_dir.join("spells.json")).unwrap();
-        f1.write_all(b"{\"spells\": [\"fireball\", \"heal\", \"teleport\"]}\n").unwrap();
+        f1.write_all(b"{\"spells\": [\"fireball\", \"heal\", \"teleport\"]}\n")
+            .unwrap();
 
         let assets_dir = root_dir.join("assets");
         fs::create_dir_all(&assets_dir).expect("Failed to create assets dir");
         let mut f2 = File::create(assets_dir.join("token.png")).unwrap();
-        f2.write_all(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR").unwrap();
+        f2.write_all(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+            .unwrap();
 
         Self { root_dir }
     }
@@ -78,7 +81,10 @@ fn test_end_to_end_entitlement_pipeline() {
         .expect("Publisher package signing must succeed");
 
     assert_eq!(manifest.package_id, package_id);
-    assert!(manifest.signature.is_some(), "Manifest must be cryptographically signed");
+    assert!(
+        manifest.signature.is_some(),
+        "Manifest must be cryptographically signed"
+    );
 
     // Verify publisher signature on manifest
     let report = verify_package_manifest(&manifest, Some(&publisher_pubkey_hex))
@@ -189,7 +195,10 @@ fn test_end_to_end_entitlement_pipeline() {
         .unwrap_err();
     match replay_err {
         kryptotome_core::KryptotomeError::Detailed { code, .. } => {
-            assert_eq!(code, kryptotome_core::error::KryptotomeErrorCode::Kryp402NonceReplayDetected);
+            assert_eq!(
+                code,
+                kryptotome_core::error::KryptotomeErrorCode::Kryp402NonceReplayDetected
+            );
         }
         _ => panic!("Expected Kryp402NonceReplayDetected, got {:?}", replay_err),
     }
@@ -199,7 +208,8 @@ fn test_end_to_end_entitlement_pipeline() {
     // =========================================================================
     // Host issues a fresh challenge for presentation bundle verification
     let bundle_nonce_str = format!("bundle-nonce-{}", rand::random::<u64>());
-    let bundle_challenge = ChallengeNonce::new(package_id.to_string(), bundle_nonce_str.clone(), 300);
+    let bundle_challenge =
+        ChallengeNonce::new(package_id.to_string(), bundle_nonce_str.clone(), 300);
 
     let proof_bundle = user_vault
         .create_proof_bundle_for_challenge(&user_keyring, &bundle_challenge)
@@ -210,7 +220,10 @@ fn test_end_to_end_entitlement_pipeline() {
     let is_bundle_valid = verifier
         .verify_proof_bundle(&proof_bundle, &bundle_challenge)
         .expect("Bundle verification must succeed");
-    assert!(is_bundle_valid, "Verifier must confirm presentation bundle is valid");
+    assert!(
+        is_bundle_valid,
+        "Verifier must confirm presentation bundle is valid"
+    );
 
     // =========================================================================
     // STEP 8: Negative Verification Security Checks

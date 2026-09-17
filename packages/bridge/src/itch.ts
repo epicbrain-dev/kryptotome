@@ -24,6 +24,14 @@ export interface ItchUserProfile {
 }
 
 export interface ItchBridgeConfig {
+  /**
+   * Base API endpoint. Defaults to 'https://itch.io/api/1'.
+   *
+   * NOTE (Browser CORS): When instantiated in browser contexts (e.g. Foundry VTT client scripts
+   * or web tabletop extensions), direct browser requests to itch.io are blocked by CORS.
+   * In browser environments, point `baseUrl` to a local backend reverse proxy
+   * (e.g. '/api/itch-proxy' or 'http://localhost:30000/api/itch') or supply a `fetchFn` that routes through the server.
+   */
   baseUrl?: string;
   fetchFn?: typeof fetch;
   registry?: PublisherRegistry;

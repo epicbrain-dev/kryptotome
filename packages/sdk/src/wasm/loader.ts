@@ -85,13 +85,30 @@ function loadWasmFromNodeFsSync(candidates: URL[]): Uint8Array | null {
     return null;
   }
   try {
-    // Check if node:fs is available synchronously via require or process.getBuiltinModule
-    const nodeFs = (typeof process !== 'undefined' && 'getBuiltinModule' in process)
+    // 1. Check if node:fs is available via process.getBuiltinModule (Node 22.3+ / 20.16+)
+    let nodeFs: any = (typeof process !== 'undefined' && 'getBuiltinModule' in process)
       ? (process as { getBuiltinModule: (id: string) => typeof import('node:fs') }).getBuiltinModule('node:fs')
       : undefined;
-    const nodeUrl = (typeof process !== 'undefined' && 'getBuiltinModule' in process)
+    let nodeUrl: any = (typeof process !== 'undefined' && 'getBuiltinModule' in process)
       ? (process as { getBuiltinModule: (id: string) => typeof import('node:url') }).getBuiltinModule('node:url')
       : undefined;
+
+    // 2. Fallback for Node 18 LTS and earlier Node 20 versions via createRequire
+    if (!nodeFs || !nodeUrl) {
+      try {
+        const getRequire = new Function(
+          'metaUrl',
+          'try { const mod = require("node:module"); return mod.createRequire(metaUrl); } catch { return null; }'
+        );
+        const req = getRequire(import.meta.url);
+        if (req) {
+          nodeFs = req('node:fs');
+          nodeUrl = req('node:url');
+        }
+      } catch {
+        // Non-Node environment or bundler shim
+      }
+    }
 
     if (nodeFs?.readFileSync && nodeUrl?.fileURLToPath) {
       for (const url of candidates) {
