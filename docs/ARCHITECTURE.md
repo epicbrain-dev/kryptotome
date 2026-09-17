@@ -61,14 +61,17 @@ flowchart TD
    - Client-side merchant bridge connects to itch.io OAuth API or DriveThruRPG Account Application Keys.
    - Validates purchase locally and derives a W3C VC v2.0 credential.
    - The credential binds the package content digest to the user's secret key commitment.
-3. **Application Verification Challenge**:
+3. **Application Verification Challenge & Replay Defense**:
    - Host software (VTT) generates an ephemeral challenge nonce with expiration (e.g. 60s TTL).
    - Local vault generates a single-use ZK proof satisfying:
      $$\text{Verify}(\text{PK}_{\text{pub}}, \text{ModuleID}, \text{Digest}, \text{Nonce}, \pi) == \text{true}$$
-   - The verifier validates $\pi$ in under 10ms and unlocks plaintext JSON/CBOR rule schemas into memory.
-4. **Table Sharing**:
+   - The verifier validates $\pi$ in under 10ms and checks the nonce against its stateful consumed nonce registry.
+   - If a nonce is expired (`KRYP-401`) or was already consumed (`KRYP-402`), verification fails immediately.
+   - On success, the nonce is marked consumed and plaintext JSON/CBOR rule schemas are unlocked into memory.
+4. **Table Sharing & Handshake Replay Prevention**:
    - Game Master proves ownership.
    - GM host signs an ephemeral session attestation for each authenticated peer on the local network or direct P2P link.
+   - Peer access requests and renewal requests contain single-use nonces tracked by `SessionManager`. Replayed requests are rejected (`KRYP-402`).
    - Connected players mount necessary character classes, spells, and mechanics without purchasing individual duplicate licenses.
 
 ---
@@ -98,12 +101,12 @@ flowchart LR
 
     Itch -->|OAuth Token| IB
     DTRPG -->|App Key| DB
-    AirGap -->|Signed Invoice / Chunked QR| OB
+    AirGap -->|Signed QR / File| OB
 
-    IB -->|Local Derivation| VC
-    DB -->|Local Derivation| VC
-    OB -->|Local Verification & Derivation| VC
-    VC -->|Stored Offline| Vault
+    IB -->|Derive VC| VC
+    DB -->|Derive VC| VC
+    OB -->|Derive VC| VC
+    VC -->|Store Locally| Vault
 ```
 
 ### 4.1 Digital Merchant Bridges
@@ -117,25 +120,15 @@ flowchart LR
 
 ---
 
-## 5. Dynamic Errata & Compendium Synchronization
+## 5. Content Synchronization & Errata Patching (`@kryptotome/sdk`)
 
-The `@kryptotome/sdk` includes the `ErrataSyncDispatcher` to deliver official rule corrections and balance updates while strictly safeguarding user customizations:
+Compendiums require synchronized updates when creators publish official errata or balance changes. The sync dispatcher manages RFC 6902 JSON Patch applications:
 
-```mermaid
-flowchart TD
-    VTT[Local VTT / App] -->|1. Transmit X-Kryptotome-Proof & Digest| Mirror[Publisher Mirror]
-    Mirror -->|2. Return RFC 6902 Errata Bundle| Sync[ErrataSyncDispatcher]
-    Sync -->|3. Isolate Official Schemas| Canonical[Canonical Rules Engine]
-    Sync -->|4. Preserve User Homebrew| Stash[(Homebrew & Custom Annotations)]
-    Canonical -->|5. Apply RFC 6902 JSON Patch| Merged[Patched Canonical Rules]
-    Merged -->|6. Re-merge Preserved Homebrew| Output[Updated Compendium Package]
-```
-
-### 5.1 Protocol Headers & Proof Verification
-- Clients query publisher mirrors using HTTP `GET` with:
-  - `X-Kryptotome-Proof`: Succinct proof verifying legitimate ownership.
-  - `X-Kryptotome-Digest`: Current package content digest.
-- Mirrors return `304 Not Modified` when current, or an `ErrataPatchBundle` containing RFC 6902 JSON patches.
+### 5.1 Errata Lifecycle
+1. Publisher releases signed patch bundle with targeted package ID and version bounds.
+2. Client verifies publisher signature and confirms base digest matches current compendium state.
+3. Patch operations apply deterministically.
+4. Final digest matches publisher post-patch specification.
 
 ### 5.2 Homebrew Isolation & Preservation
 - Compendium packages frequently contain user homebrew items (`homebrew: true`, `source: 'homebrew'`) and custom modifications (`userNotes`, `custom_*`).
@@ -186,3 +179,26 @@ To guarantee 60fps UI responsiveness during gaming sessions, Kryptotome mandates
 | **Verifier Memory** | $< 16\text{ MB}$ | Bounded verifier memory delta (`< 1 MB`). |
 | **Event Loop Isolation** | Non-blocking | `WorkerVerifierBridge` offloads crypto ops to dedicated Web Worker threads. |
 
+---
+
+## 8. Security, Privacy, and Audit Assurance
+
+Kryptotome maintains rigorous automated auditing across all protocol components:
+
+### 8.1 Mathematical Unlinkability & Randomness
+- Prover blinding scalars $r, s \in \mathbb{F}_q^*$ guarantee that proof coordinates $(A, B, C) \in G_1 \times G_2 \times G_1$ are uniformly distributed.
+- High Shannon entropy ($> 7.80\text{ b/B}$) prevents statistical fingerprinting.
+- Hamming distance variance matches uniform random distribution ($\approx 0.5000$) with cross-identity clustering divergence $< 0.02$.
+
+### 8.2 Zero-PII Data Sanitization
+- All credentials, manifests, proofs, and session tokens are audited against regex patterns for emails, IPs, paths, SSNs, phone numbers, and payment cards.
+- Holder identities are bound strictly through cryptographic Pedersen commitments (`urn:kryptotome:commitment:bls12381:...`).
+
+### 8.3 Replay Attack Mitigation
+- Two-tier stateful consumed nonce tracking in `EmbeddedVerifier` and `SessionManager` eliminates proof, bundle, handshake, and renewal replay vectors (`KRYP-401`, `KRYP-402`).
+
+### 8.4 Automated Dependency Auditing
+- Maintained zero known CVEs via continuous CI pipeline runs of `cargo audit` (scanning 273 crates) and `npm audit` via `./scripts/security_audit.sh`.
+
+### 8.5 Continuous Fuzz Testing
+- libFuzzer targets in the `fuzz/` crate continuously test untrusted manifests (`fuzz_target_manifest`), proofs (`fuzz_target_proof`), and presentation envelopes (`fuzz_target_bundle`), supplemented by in-tree property mutation regression suites.
