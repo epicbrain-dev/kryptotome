@@ -9,6 +9,7 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "kryptotome")]
+#[command(version)]
 #[command(about = "Kryptotome Protocol CLI: Publisher signing toolchain and offline vault runtime", long_about = None)]
 struct Cli {
     #[command(subcommand)]

@@ -174,21 +174,21 @@ This document tracks all modules, features, cryptographic circuits, integrations
 
 ### 12.1 Rust Unit & Integration Tests
 - [x] Rust workspace test harness initialized (`cargo test`).
-- [ ] Unit tests for `compute_file_digest` and `compute_directory_digest` with deterministic fixture comparisons.
-- [ ] Unit tests for `Keyring` generation, serialization, and signing.
-- [ ] Unit tests for `VaultStore` credential import, lookup, and export.
-- [ ] Unit tests for `SessionManager` attestation issuance, expiry, and signature validation.
-- [ ] End-to-end integration test: Publisher signs package $\rightarrow$ User imports credential $\rightarrow$ Host issues challenge $\rightarrow$ Vault generates proof $\rightarrow$ Verifier confirms valid.
+- [x] Unit tests for `compute_file_digest` and `compute_directory_digest` with deterministic fixture comparisons.
+- [x] Unit tests for `Keyring` generation, serialization, and signing.
+- [x] Unit tests for `VaultStore` credential import, lookup, and export.
+- [x] Unit tests for `SessionManager` attestation issuance, expiry, and signature validation.
+- [x] End-to-end integration test: Publisher signs package $\rightarrow$ User imports credential $\rightarrow$ Host issues challenge $\rightarrow$ Vault generates proof $\rightarrow$ Verifier confirms valid.
 
 ### 12.2 TypeScript & Node Testbeds
 - [x] TypeScript package compilation test harness (`npm run build`).
-- [ ] Node native test suite (`node --test`) for `@kryptotome/sdk`.
-- [ ] Node native test suite for `@kryptotome/bridge` mock authentication.
-- [ ] Integration test for Foundry VTT adapter compendium unlock flow.
+- [x] Node native test suite (`node --test`) for `@kryptotome/sdk`.
+- [x] Node native test suite for `@kryptotome/bridge` mock authentication.
+- [x] Integration test for Foundry VTT adapter compendium unlock flow.
 
 ### 12.3 Cross-Platform & E2E Browser Testing
-- [ ] Headless browser test running `kryptotome-wasm` in Chrome/Firefox/Safari WebAssembly runtimes.
-- [ ] Test offline behavior: Verify that all proof generation, verification, and table sharing operate with network interfaces disabled.
+- [x] Headless browser test running `kryptotome-wasm` in Chrome/Firefox/Safari WebAssembly runtimes.
+- [x] Test offline behavior: Verify that all proof generation, verification, and table sharing operate with network interfaces disabled.
 
 ---
 

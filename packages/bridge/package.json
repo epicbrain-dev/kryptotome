@@ -1,6 +1,6 @@
 {
   "name": "@kryptotome/bridge",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Local client-side merchant bridges for itch.io and DriveThruRPG",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,7 +10,7 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@kryptotome/sdk": "0.1.0"
+    "@kryptotome/sdk": "1.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

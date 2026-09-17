@@ -1,6 +1,6 @@
 {
   "name": "@kryptotome/vtt-adapter",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Virtual Tabletop (Foundry VTT) adapter for Kryptotome offline verification and table sharing",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,7 +10,7 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@kryptotome/sdk": "0.1.0"
+    "@kryptotome/sdk": "1.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

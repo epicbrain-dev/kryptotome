@@ -1,4 +1,4 @@
-use ed25519_dalek::SigningKey;
+use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -37,7 +37,7 @@ impl std::fmt::Debug for ZeroizingSecretKey {
 pub struct Keyring {
     #[zeroize(skip)]
     pub key_id: String,
-    #[serde(skip_serializing)]
+    #[serde(default, skip_serializing)]
     secret_bytes: Vec<u8>,
     #[zeroize(skip)]
     pub public_key_hex: String,
@@ -116,6 +116,34 @@ impl Keyring {
         (urn, secret, blinding)
     }
 
+    /// Signs a message with the Keyring's Ed25519 private key.
+    pub fn sign(&self, message: &[u8]) -> Result<ed25519_dalek::Signature, String> {
+        if self.is_zeroized() || self.secret_bytes.len() != 32 {
+            return Err("Cannot sign: secret key is zeroized or invalid length".to_string());
+        }
+        let mut arr = [0u8; 32];
+        arr.copy_from_slice(&self.secret_bytes);
+        let signing_key = SigningKey::from_bytes(&arr);
+        arr.zeroize();
+        Ok(signing_key.sign(message))
+    }
+
+    /// Verifies an Ed25519 signature against this Keyring's public key.
+    pub fn verify(&self, message: &[u8], signature: &ed25519_dalek::Signature) -> Result<bool, String> {
+        let pub_bytes = hex_decode(&self.public_key_hex)?;
+        if pub_bytes.len() != 32 {
+            return Err("Invalid public key length, expected 32 bytes".to_string());
+        }
+        let mut arr = [0u8; 32];
+        arr.copy_from_slice(&pub_bytes);
+        let verifying_key = VerifyingKey::from_bytes(&arr)
+            .map_err(|e| format!("Invalid public key: {}", e))?;
+        verifying_key
+            .verify(message, signature)
+            .map(|_| true)
+            .map_err(|e| format!("Signature verification failed: {}", e))
+    }
+
     /// Exports key data for encrypted backup envelopes
     pub fn to_backup_data(&self) -> KeyringBackupData {
         KeyringBackupData {
@@ -159,4 +187,96 @@ fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
                 .map_err(|e| format!("Invalid hex byte: {}", e))
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_keyring_generation_lifecycle() {
+        // 1. Random generation
+        let keyring1 = Keyring::generate();
+        let keyring2 = Keyring::generate();
+
+        assert_ne!(keyring1.key_id, keyring2.key_id);
+        assert_ne!(keyring1.public_key_hex, keyring2.public_key_hex);
+        assert_ne!(keyring1.secret_bytes(), keyring2.secret_bytes());
+        assert!(keyring1.key_id.starts_with("did:key:z"));
+        assert_eq!(keyring1.public_key_hex.len(), 64);
+        assert_eq!(keyring1.secret_bytes().len(), 32);
+        assert!(!keyring1.is_zeroized());
+
+        // 2. Deterministic generation from 32-byte secret seed
+        let seed = [0x5au8; 32];
+        let keyring_from_seed1 = Keyring::from_secret_bytes(&seed).unwrap();
+        let keyring_from_seed2 = Keyring::from_secret_bytes(&seed).unwrap();
+        assert_eq!(keyring_from_seed1.key_id, keyring_from_seed2.key_id);
+        assert_eq!(keyring_from_seed1.public_key_hex, keyring_from_seed2.public_key_hex);
+        assert_eq!(keyring_from_seed1.secret_bytes(), keyring_from_seed2.secret_bytes());
+
+        // 3. Rejection of invalid secret length
+        assert!(Keyring::from_secret_bytes(&[0u8; 31]).is_err());
+        assert!(Keyring::from_secret_bytes(&[0u8; 33]).is_err());
+        assert!(Keyring::from_secret_bytes(&[]).is_err());
+    }
+
+    #[test]
+    fn test_keyring_serialization_roundtrip() {
+        let keyring = Keyring::generate();
+
+        // 1. Backup data serialization roundtrip
+        let backup_data = keyring.to_backup_data();
+        assert_eq!(backup_data.key_id, keyring.key_id);
+        assert_eq!(backup_data.public_key_hex, keyring.public_key_hex);
+        assert_eq!(backup_data.secret_bytes_hex, hex_encode(keyring.secret_bytes()));
+
+        let json = serde_json::to_string(&backup_data).unwrap();
+        let restored_backup: KeyringBackupData = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored_backup, backup_data);
+
+        let restored_keyring = Keyring::from_backup_data(&restored_backup).unwrap();
+        assert_eq!(restored_keyring.key_id, keyring.key_id);
+        assert_eq!(restored_keyring.public_key_hex, keyring.public_key_hex);
+        assert_eq!(restored_keyring.secret_bytes(), keyring.secret_bytes());
+
+        // 2. Standard JSON serialization omits secret_bytes for memory safety
+        let standard_json = serde_json::to_string(&keyring).unwrap();
+        assert!(!standard_json.contains("secretBytes"));
+        let deserialized_keyring: Keyring = serde_json::from_str(&standard_json).unwrap();
+        assert_eq!(deserialized_keyring.key_id, keyring.key_id);
+        assert_eq!(deserialized_keyring.public_key_hex, keyring.public_key_hex);
+        // Secret bytes should be empty in deserialized standard JSON
+        assert!(deserialized_keyring.is_zeroized());
+    }
+
+    #[test]
+    fn test_keyring_signing_and_verification() {
+        let keyring = Keyring::generate();
+        let message = b"Kryptotome digital entitlement session auth challenge nonce: 987654321";
+
+        // 1. Valid signature generation and verification
+        let signature = keyring.sign(message).expect("Signing must succeed");
+        let is_valid = keyring.verify(message, &signature).expect("Verification must succeed");
+        assert!(is_valid, "Valid signature must verify");
+
+        // 2. Tampered message fails verification
+        let tampered_message = b"Kryptotome digital entitlement session auth challenge nonce: 000000000";
+        assert!(keyring.verify(tampered_message, &signature).is_err());
+
+        // 3. Tampered signature fails verification
+        let mut sig_bytes = signature.to_bytes();
+        sig_bytes[0] ^= 0xFF;
+        let tampered_signature = ed25519_dalek::Signature::from_bytes(&sig_bytes);
+        assert!(keyring.verify(message, &tampered_signature).is_err());
+
+        // 4. Verification with a different keyring fails
+        let other_keyring = Keyring::generate();
+        assert!(other_keyring.verify(message, &signature).is_err());
+
+        // 5. Zeroized keyring cannot sign
+        let mut zeroized_keyring = keyring.clone();
+        zeroized_keyring.zeroize();
+        assert!(zeroized_keyring.sign(message).is_err());
+    }
 }

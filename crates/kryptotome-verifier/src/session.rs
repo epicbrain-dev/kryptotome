@@ -1342,4 +1342,135 @@ mod tests {
             _ => panic!("Expected Kryp703, got {:?}", err),
         }
     }
+
+    #[test]
+    fn test_session_manager_attestation_issuance_expiry_and_signature_validation() {
+        let host = SessionManager::new("table-session-101".to_string());
+        let host_pubkey = host.host_public_key_hex();
+        let peer_id = "peer:player:wizard";
+        let package_id = "paizo/pathfinder-spells";
+        let content_digest = "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        let scopes = vec!["spells".to_string(), "rules".to_string()];
+
+        // 1. Attestation Issuance
+        let attestation = host.issue_peer_attestation(
+            peer_id,
+            package_id,
+            content_digest,
+            scopes.clone(),
+            120, // 2 hours
+        );
+
+        assert_eq!(attestation.session_id, "table-session-101");
+        assert_eq!(attestation.recipient_peer_id, peer_id);
+        assert_eq!(attestation.package_id, package_id);
+        assert_eq!(attestation.content_digest, content_digest);
+        assert_eq!(attestation.permitted_scopes, scopes);
+        assert_eq!(attestation.host_peer_id, host_pubkey);
+        assert_eq!(attestation.signature_hex.len(), 128); // 64 bytes = 128 hex chars
+        assert!(attestation.expires_at > attestation.issued_at);
+        assert_eq!(attestation.expires_at - attestation.issued_at, Duration::minutes(120));
+
+        // 2. Valid Signature Verification
+        let valid_crypto = SessionManager::verify_peer_attestation_crypto(&attestation, &host_pubkey)
+            .expect("Valid attestation crypto verification must succeed");
+        assert!(valid_crypto);
+
+        let valid_string = SessionManager::verify_peer_attestation(&attestation, &host_pubkey)
+            .expect("Valid attestation string verification must succeed");
+        assert!(valid_string);
+
+        // 3. Expiry Enforcement
+        let mut expired_attestation = attestation.clone();
+        expired_attestation.expires_at = Utc::now() - Duration::minutes(10);
+        
+        let err_expiry = SessionManager::verify_peer_attestation_crypto(&expired_attestation, &host_pubkey)
+            .unwrap_err();
+        match err_expiry {
+            KryptotomeError::Detailed { code, message } => {
+                assert_eq!(code, KryptotomeErrorCode::Kryp701SessionTokenExpired);
+                assert!(message.contains("Session attestation expired"));
+            }
+            _ => panic!("Expected Kryp701SessionTokenExpired, got {:?}", err_expiry),
+        }
+        assert!(SessionManager::verify_peer_attestation(&expired_attestation, &host_pubkey).is_err());
+
+        // Mounted session expiry checks
+        let mounted_valid = MountedCompendiumSession {
+            package_id: package_id.to_string(),
+            content_digest: content_digest.to_string(),
+            host_peer_id: host_pubkey.clone(),
+            recipient_peer_id: peer_id.to_string(),
+            session_id: "table-session-101".to_string(),
+            permitted_scopes: scopes.clone(),
+            issued_at: Utc::now() - Duration::minutes(5),
+            expires_at: Utc::now() + Duration::minutes(55),
+            mounted_at: Utc::now() - Duration::minutes(5),
+        };
+        assert!(mounted_valid.is_valid());
+        assert!(mounted_valid.remaining_duration() > Duration::zero());
+        assert!(mounted_valid.check_asset_access("spells/magic_missile.json").is_ok());
+
+        let mounted_expired = MountedCompendiumSession {
+            expires_at: Utc::now() - Duration::minutes(5),
+            ..mounted_valid.clone()
+        };
+        assert!(!mounted_expired.is_valid());
+        assert_eq!(mounted_expired.remaining_duration(), Duration::zero());
+        let access_err = mounted_expired.check_asset_access("spells/magic_missile.json").unwrap_err();
+        match access_err {
+            KryptotomeError::Detailed { code, .. } => {
+                assert_eq!(code, KryptotomeErrorCode::Kryp701SessionTokenExpired);
+            }
+            _ => panic!("Expected Kryp701, got {:?}", access_err),
+        }
+
+        // 4. Signature Validation Failure on Tampered Payload Fields
+        // Tampered session_id
+        let mut tampered = attestation.clone();
+        tampered.session_id = "table-session-tampered".to_string();
+        let err = SessionManager::verify_peer_attestation_crypto(&tampered, &host_pubkey).unwrap_err();
+        assert!(matches!(err, KryptotomeError::Detailed { code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed, .. }));
+
+        // Tampered recipient_peer_id
+        let mut tampered = attestation.clone();
+        tampered.recipient_peer_id = "peer:player:eavesdropper".to_string();
+        let err = SessionManager::verify_peer_attestation_crypto(&tampered, &host_pubkey).unwrap_err();
+        assert!(matches!(err, KryptotomeError::Detailed { code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed, .. }));
+
+        // Tampered package_id
+        let mut tampered = attestation.clone();
+        tampered.package_id = "paizo/unauthorized-adventure".to_string();
+        let err = SessionManager::verify_peer_attestation_crypto(&tampered, &host_pubkey).unwrap_err();
+        assert!(matches!(err, KryptotomeError::Detailed { code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed, .. }));
+
+        // Tampered content_digest
+        let mut tampered = attestation.clone();
+        tampered.content_digest = "sha256:9999999999999999999999999999999999999999999999999999999999999999".to_string();
+        let err = SessionManager::verify_peer_attestation_crypto(&tampered, &host_pubkey).unwrap_err();
+        assert!(matches!(err, KryptotomeError::Detailed { code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed, .. }));
+
+        // 5. Signature Validation with Wrong Host Public Key
+        let other_host = SessionManager::new("other-table".to_string());
+        let err = SessionManager::verify_peer_attestation_crypto(&attestation, &other_host.host_public_key_hex()).unwrap_err();
+        assert!(matches!(err, KryptotomeError::Detailed { code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed, .. }));
+
+        // 6. Corrupted Signature Hex Rejections
+        let mut corrupted_sig = attestation.clone();
+        corrupted_sig.signature_hex = "not-a-hex-string".to_string();
+        let err = SessionManager::verify_peer_attestation_crypto(&corrupted_sig, &host_pubkey).unwrap_err();
+        assert!(matches!(err, KryptotomeError::Detailed { code: KryptotomeErrorCode::Kryp203CorruptedSignature, .. }));
+
+        let mut short_sig = attestation.clone();
+        short_sig.signature_hex = "abcd".to_string();
+        let err = SessionManager::verify_peer_attestation_crypto(&short_sig, &host_pubkey).unwrap_err();
+        assert!(matches!(err, KryptotomeError::Detailed { code: KryptotomeErrorCode::Kryp203CorruptedSignature, .. }));
+
+        // 7. Corrupted Host Public Key Hex Rejections
+        let err = SessionManager::verify_peer_attestation_crypto(&attestation, "invalid-hex-pubkey").unwrap_err();
+        assert!(matches!(err, KryptotomeError::Detailed { code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat, .. }));
+
+        let err = SessionManager::verify_peer_attestation_crypto(&attestation, "1234abcd").unwrap_err();
+        assert!(matches!(err, KryptotomeError::Detailed { code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat, .. }));
+    }
 }

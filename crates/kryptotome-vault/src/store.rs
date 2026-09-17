@@ -970,6 +970,109 @@ mod tests {
         assert!(compact_bytes.starts_with(kryptotome_core::BUNDLE_MAGIC));
     }
 
+    #[test]
+    fn test_vault_store_credential_import_lookup_and_export() {
+        let temp_dir = std::env::temp_dir().join(format!("ktome_store_test_{}", rand::random::<u64>()));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let store_file = temp_dir.join("vault_store.json");
+
+        // 1. Creation and initial state
+        let mut store = VaultStore::new();
+        assert!(store.credentials.is_empty());
+        assert!(store.get_credential("nonexistent").is_none());
+        assert!(store.find_for_package("nonexistent-package").is_none());
+
+        // 2. Credential Import via insert_credential
+        let cred_1 = make_sample_credential("cred-id-001", "paizo/pathfinder-spells");
+        let cred_2 = make_sample_credential("cred-id-002", "paizo/pathfinder-monsters");
+        
+        // Multi-entitlement credential
+        let issuer = kryptotome_core::Issuer {
+            id: "did:key:zPublisher789".to_string(),
+            name: "Paizo Multi".to_string(),
+            public_key: "ed25519:pubkey789".to_string(),
+        };
+        let multi_entitlements = vec![
+            kryptotome_core::Entitlement {
+                package_id: "paizo/rules-core".to_string(),
+                content_digest: "sha256:digest-core".to_string(),
+                scope: vec!["rules".to_string()],
+            },
+            kryptotome_core::Entitlement {
+                package_id: "paizo/rules-expanded".to_string(),
+                content_digest: "sha256:digest-expanded".to_string(),
+                scope: vec!["advanced".to_string()],
+            },
+        ];
+        let cred_multi = kryptotome_core::KryptotomeCredential::new(
+            "cred-id-multi".to_string(),
+            issuer,
+            "did:key:zHolder999".to_string(),
+            "urn:kryptotome:commitment:bls12381:holder999".to_string(),
+            multi_entitlements,
+            "sig-multi".to_string(),
+        );
+
+        store.insert_credential(cred_1.clone());
+        store.insert_credential(cred_2.clone());
+        store.insert_credential(cred_multi.clone());
+
+        assert_eq!(store.credentials.len(), 3);
+
+        // 3. Credential Lookup by ID
+        let looked_up_1 = store.get_credential("cred-id-001").expect("cred-id-001 must be found");
+        assert_eq!(looked_up_1.id, "cred-id-001");
+        assert_eq!(looked_up_1.credential_subject.entitlements[0].package_id, "paizo/pathfinder-spells");
+
+        let looked_up_2 = store.get_credential("cred-id-002").expect("cred-id-002 must be found");
+        assert_eq!(looked_up_2.id, "cred-id-002");
+        assert_eq!(looked_up_2.credential_subject.entitlements[0].package_id, "paizo/pathfinder-monsters");
+
+        assert!(store.get_credential("cred-id-missing").is_none());
+
+        // 4. Credential Lookup by Package ID (find_for_package)
+        let found_spells = store.find_for_package("paizo/pathfinder-spells").expect("Spells cred must be found");
+        assert_eq!(found_spells.id, "cred-id-001");
+
+        let found_monsters = store.find_for_package("paizo/pathfinder-monsters").expect("Monsters cred must be found");
+        assert_eq!(found_monsters.id, "cred-id-002");
+
+        // Multi-entitlement lookups
+        let found_core = store.find_for_package("paizo/rules-core").expect("Core rules cred must be found");
+        assert_eq!(found_core.id, "cred-id-multi");
+
+        let found_expanded = store.find_for_package("paizo/rules-expanded").expect("Expanded rules cred must be found");
+        assert_eq!(found_expanded.id, "cred-id-multi");
+
+        assert!(store.find_for_package("paizo/unowned-module").is_none());
+
+        // 5. Credential Export to JSON string
+        let exported_json = store.export_to_json().expect("Exporting to JSON must succeed");
+        assert!(exported_json.contains("cred-id-001"));
+        assert!(exported_json.contains("cred-id-002"));
+        assert!(exported_json.contains("cred-id-multi"));
+        assert!(exported_json.contains("paizo/rules-expanded"));
+
+        // 6. Credential Import from JSON string
+        let imported_from_json = VaultStore::import_from_json(&exported_json).expect("Importing from JSON must succeed");
+        assert_eq!(imported_from_json, store);
+
+        // Corrupted JSON import returns SerializationError
+        assert!(VaultStore::import_from_json("{corrupted json").is_err());
+
+        // 7. Credential Export to File (save_to_file) & Import from File (load_from_file)
+        store.save_to_file(&store_file).expect("save_to_file must succeed");
+        assert!(store_file.exists());
+
+        let imported_from_file = VaultStore::load_from_file(&store_file).expect("load_from_file must succeed");
+        assert_eq!(imported_from_file, store);
+        assert_eq!(imported_from_file.credentials.len(), 3);
+        assert!(imported_from_file.get_credential("cred-id-multi").is_some());
+
+        // Cleanup
+        std::fs::remove_dir_all(temp_dir).unwrap();
+    }
+
     fn uuid_v4_simple() -> String {
         let mut bytes = [0u8; 16];
         OsRng.fill_bytes(&mut bytes);
