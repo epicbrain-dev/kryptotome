@@ -624,7 +624,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Tournament ID: {}", result.tournament_id);
             println!("Character Name: {}", result.character_name);
             println!("Verified Feats: {}", result.verified_feats_count);
-            println!("Verification Latency: {:.3}ms (Target: < 10ms)", result.latency_ms);
+            println!(
+                "Verification Latency: {:.3}ms (Target: < 10ms)",
+                result.latency_ms
+            );
             println!("PII Protected: {}", !result.contains_pii);
             println!("Verified At: {}", result.verified_at);
         }

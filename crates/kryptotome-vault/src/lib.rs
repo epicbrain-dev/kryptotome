@@ -11,6 +11,10 @@ pub mod store;
 
 pub use keyring::{Keyring, KeyringBackupData, ZeroizingSecretKey};
 pub use keystore::{EncryptedKeystore, EncryptionCipher, KdfParams};
+pub use kryptotome_core::{
+    CollectedClientData, PasskeyAssertion, PasskeyBinding, PasskeyHardwareManager,
+    PasskeyVerificationResult, WEBAUTHN_FLAG_USER_PRESENT, WEBAUTHN_FLAG_USER_VERIFIED,
+};
 pub use platform_keyring::{PlatformBackend, PlatformKeyring, DEFAULT_KEYCHAIN_SERVICE};
 pub use revocation::{
     compute_leaf_hash, MerkleDirection, MerkleProof, MerkleProofStep, MerkleRevocationTree,
@@ -20,10 +24,6 @@ pub use revocation::{
 pub use store::{
     EncryptedVaultBackup, EncryptedVaultFile, VaultBackupPayload, VaultStore,
     BACKUP_FILE_EXTENSION, BACKUP_FORMAT_IDENTIFIER,
-};
-pub use kryptotome_core::{
-    CollectedClientData, PasskeyAssertion, PasskeyBinding, PasskeyHardwareManager,
-    PasskeyVerificationResult, WEBAUTHN_FLAG_USER_PRESENT, WEBAUTHN_FLAG_USER_VERIFIED,
 };
 
 #[cfg(test)]

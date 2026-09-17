@@ -2,13 +2,11 @@
 
 use ed25519_dalek::SigningKey;
 use kryptotome_publisher_studio::{
-    hash_asset_content, sign_and_build_package,
-    parse_backer_csv, generate_batch_fulfillment,
-    generate_voucher_batch, format_ndef_payload,
-    BuiltPackageBundle, StudioPackageManifest, RulebookAsset,
-    CrowdfundingPlatform, FulfillmentTierConfig, BatchFulfillmentReport,
-    PhysicalVoucherBatchSpec, PhysicalVoucherRecord, NfcTagPayload,
-    AuditLogEntry, AUDIT_CHRONICLE,
+    format_ndef_payload, generate_batch_fulfillment, generate_voucher_batch, hash_asset_content,
+    parse_backer_csv, sign_and_build_package, AuditLogEntry, BatchFulfillmentReport,
+    BuiltPackageBundle, CrowdfundingPlatform, FulfillmentTierConfig, NfcTagPayload,
+    PhysicalVoucherBatchSpec, PhysicalVoucherRecord, RulebookAsset, StudioPackageManifest,
+    AUDIT_CHRONICLE,
 };
 
 fn main() {
@@ -31,8 +29,8 @@ pub fn build_package(
     manifest: StudioPackageManifest,
     signing_key_hex: &str,
 ) -> Result<BuiltPackageBundle, String> {
-    let key_bytes = hex::decode(signing_key_hex)
-        .map_err(|e| format!("Invalid hex signing key: {}", e))?;
+    let key_bytes =
+        hex::decode(signing_key_hex).map_err(|e| format!("Invalid hex signing key: {}", e))?;
     if key_bytes.len() != 32 {
         return Err("Signing key must be exactly 32 bytes (64 hex characters)".into());
     }
@@ -49,8 +47,8 @@ pub fn ingest_crowdfunding(
     publisher_name: &str,
     signing_key_hex: &str,
 ) -> Result<BatchFulfillmentReport, String> {
-    let key_bytes = hex::decode(signing_key_hex)
-        .map_err(|e| format!("Invalid hex signing key: {}", e))?;
+    let key_bytes =
+        hex::decode(signing_key_hex).map_err(|e| format!("Invalid hex signing key: {}", e))?;
     if key_bytes.len() != 32 {
         return Err("Signing key must be 32 bytes".into());
     }
@@ -74,8 +72,8 @@ pub fn generate_vouchers(
     spec: &PhysicalVoucherBatchSpec,
     signing_key_hex: &str,
 ) -> Result<Vec<PhysicalVoucherRecord>, String> {
-    let key_bytes = hex::decode(signing_key_hex)
-        .map_err(|e| format!("Invalid hex signing key: {}", e))?;
+    let key_bytes =
+        hex::decode(signing_key_hex).map_err(|e| format!("Invalid hex signing key: {}", e))?;
     if key_bytes.len() != 32 {
         return Err("Signing key must be 32 bytes".into());
     }

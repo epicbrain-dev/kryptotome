@@ -51,7 +51,9 @@ pub struct TournamentScanner;
 
 impl TournamentScanner {
     /// Fast tournament check-in verifier guaranteeing < 10ms execution and zero PII leakage
-    pub fn verify_ticket(ticket: &TournamentCheckInTicket) -> Result<TournamentCheckInResult, String> {
+    pub fn verify_ticket(
+        ticket: &TournamentCheckInTicket,
+    ) -> Result<TournamentCheckInResult, String> {
         let start = Instant::now();
 
         if ticket.tournament_id.trim().is_empty() {

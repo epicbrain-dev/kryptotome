@@ -229,10 +229,13 @@ impl EncryptedKeystore {
         expected_challenge: &str,
         require_user_verification: bool,
     ) -> Result<PasskeyVerificationResult> {
-        let binding = self.passkey_binding.as_ref().ok_or_else(|| KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp604KeyCustodyError,
-            message: "No passkey binding associated with this keystore".to_string(),
-        })?;
+        let binding = self
+            .passkey_binding
+            .as_ref()
+            .ok_or_else(|| KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp604KeyCustodyError,
+                message: "No passkey binding associated with this keystore".to_string(),
+            })?;
 
         PasskeyHardwareManager::verify_assertion(
             binding,
@@ -520,7 +523,9 @@ mod tests {
             true, // user_verified
         );
 
-        let result = keystore.verify_passkey_presence(&assertion, challenge, true).unwrap();
+        let result = keystore
+            .verify_passkey_presence(&assertion, challenge, true)
+            .unwrap();
         assert!(result.verified);
         assert!(result.user_present);
         assert!(result.user_verified);

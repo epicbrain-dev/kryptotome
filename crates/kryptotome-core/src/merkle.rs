@@ -14,7 +14,11 @@ pub struct CompendiumItem {
 }
 
 impl CompendiumItem {
-    pub fn new(id: impl Into<String>, item_type: impl Into<String>, digest: impl Into<String>) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        item_type: impl Into<String>,
+        digest: impl Into<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             item_type: item_type.into(),
@@ -76,11 +80,11 @@ impl MerkleInclusionProof {
             let mut hasher = Sha256::new();
             hasher.update(b"kryptotome:node:");
             if step.is_left {
-                hasher.update(&sibling_bytes);
-                hasher.update(&current_hash);
+                hasher.update(sibling_bytes);
+                hasher.update(current_hash);
             } else {
-                hasher.update(&current_hash);
-                hasher.update(&sibling_bytes);
+                hasher.update(current_hash);
+                hasher.update(sibling_bytes);
             }
             current_hash = hasher.finalize().into();
         }
@@ -106,25 +110,25 @@ impl CompendiumMerkleTree {
             });
         }
 
-
-        let mut current_layer: Vec<[u8; 32]> = items.iter().map(|it| it.compute_leaf_hash()).collect();
+        let mut current_layer: Vec<[u8; 32]> =
+            items.iter().map(|it| it.compute_leaf_hash()).collect();
         let mut layers = vec![current_layer.clone()];
 
         while current_layer.len() > 1 {
-            let mut next_layer = Vec::with_capacity((current_layer.len() + 1) / 2);
+            let mut next_layer = Vec::with_capacity(current_layer.len().div_ceil(2));
             for chunk in current_layer.chunks(2) {
                 if chunk.len() == 2 {
                     let mut hasher = Sha256::new();
                     hasher.update(b"kryptotome:node:");
-                    hasher.update(&chunk[0]);
-                    hasher.update(&chunk[1]);
+                    hasher.update(chunk[0]);
+                    hasher.update(chunk[1]);
                     next_layer.push(hasher.finalize().into());
                 } else {
                     // Odd number of leaves: duplicate last element
                     let mut hasher = Sha256::new();
                     hasher.update(b"kryptotome:node:");
-                    hasher.update(&chunk[0]);
-                    hasher.update(&chunk[0]);
+                    hasher.update(chunk[0]);
+                    hasher.update(chunk[0]);
                     next_layer.push(hasher.finalize().into());
                 }
             }
@@ -160,7 +164,6 @@ impl CompendiumMerkleTree {
                 code: KryptotomeErrorCode::Kryp603EntitlementNotFound,
                 message: format!("Item '{}' not found in compendium Merkle tree", item_id),
             })?;
-
 
         let item = self.items[leaf_idx].clone();
         let mut path = Vec::new();
@@ -215,9 +218,21 @@ mod tests {
     #[test]
     fn test_merkle_tree_root_and_inclusion_proof() {
         let items = vec![
-            CompendiumItem::new("spell:fireball", "spell", "sha256:1111111111111111111111111111111111111111111111111111111111111111"),
-            CompendiumItem::new("spell:magic-missile", "spell", "sha256:2222222222222222222222222222222222222222222222222222222222222222"),
-            CompendiumItem::new("monster:red-dragon", "monster", "sha256:3333333333333333333333333333333333333333333333333333333333333333"),
+            CompendiumItem::new(
+                "spell:fireball",
+                "spell",
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            ),
+            CompendiumItem::new(
+                "spell:magic-missile",
+                "spell",
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            ),
+            CompendiumItem::new(
+                "monster:red-dragon",
+                "monster",
+                "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            ),
         ];
 
         let tree = CompendiumMerkleTree::new(items.clone()).unwrap();

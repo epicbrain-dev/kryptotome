@@ -100,6 +100,12 @@ pub struct CameraQrManager {
     frame_totals: Mutex<HashMap<String, usize>>,
 }
 
+impl Default for CameraQrManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CameraQrManager {
     pub fn new() -> Self {
         Self {
@@ -138,7 +144,7 @@ impl CameraQrManager {
         let mut totals = self.frame_totals.lock().unwrap();
 
         totals.insert(msg_id.clone(), total_frames);
-        let msg_map = buffers.entry(msg_id.clone()).or_insert_with(HashMap::new);
+        let msg_map = buffers.entry(msg_id.clone()).or_default();
         msg_map.insert(frame_index, payload);
 
         let received = msg_map.len();
@@ -196,6 +202,12 @@ pub struct TableBeaconStatus {
 pub struct TableBeaconManager {
     status: Mutex<Option<TableBeaconStatus>>,
     connected_peers: Mutex<HashSet<String>>,
+}
+
+impl Default for TableBeaconManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TableBeaconManager {
@@ -275,23 +287,32 @@ pub struct PocketVaultState {
     pub entitlements: Mutex<Vec<VaultEntitlementSummary>>,
 }
 
+impl Default for PocketVaultState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PocketVaultState {
     pub fn new() -> Self {
-        let mut default_entitlements = Vec::new();
-        default_entitlements.push(VaultEntitlementSummary {
-            package_id: "paizo/player-core".to_string(),
-            title: "Pathfinder 2e: Player Core (Remaster)".to_string(),
-            publisher: "Paizo Inc.".to_string(),
-            digest: "sha256:73a85757532b62fd82a3b611d03ce5de2f2a3491f9b47568574afda042faeb8f".to_string(),
-            issued_at: Utc::now().to_rfc3339(),
-        });
-        default_entitlements.push(VaultEntitlementSummary {
-            package_id: "open-rpg/core-spells".to_string(),
-            title: "Core Spells & Cantrips Compendium".to_string(),
-            publisher: "Open Gaming Foundation".to_string(),
-            digest: "sha256:4b227777d4da1fc6e11e80a06451e67d3b43a50370f23ec14ff16a15f84ac524".to_string(),
-            issued_at: Utc::now().to_rfc3339(),
-        });
+        let default_entitlements = vec![
+            VaultEntitlementSummary {
+                package_id: "paizo/player-core".to_string(),
+                title: "Pathfinder 2e: Player Core (Remaster)".to_string(),
+                publisher: "Paizo Inc.".to_string(),
+                digest: "sha256:73a85757532b62fd82a3b611d03ce5de2f2a3491f9b47568574afda042faeb8f"
+                    .to_string(),
+                issued_at: Utc::now().to_rfc3339(),
+            },
+            VaultEntitlementSummary {
+                package_id: "open-rpg/core-spells".to_string(),
+                title: "Core Spells & Cantrips Compendium".to_string(),
+                publisher: "Open Gaming Foundation".to_string(),
+                digest: "sha256:4b227777d4da1fc6e11e80a06451e67d3b43a50370f23ec14ff16a15f84ac524"
+                    .to_string(),
+                issued_at: Utc::now().to_rfc3339(),
+            },
+        ];
 
         Self {
             biometric: Arc::new(BiometricAuthManager::new(EnclaveType::AppleSecureEnclave)),
@@ -307,12 +328,15 @@ impl PocketVaultState {
         challenge_nonce: &str,
     ) -> Result<String, PocketVaultError> {
         let ents = self.entitlements.lock().unwrap();
-        let ent = ents.iter().find(|e| e.package_id == package_id).ok_or_else(|| {
-            PocketVaultError::BeaconError(format!(
-                "Credential for package '{}' not present in pocket vault",
-                package_id
-            ))
-        })?;
+        let ent = ents
+            .iter()
+            .find(|e| e.package_id == package_id)
+            .ok_or_else(|| {
+                PocketVaultError::BeaconError(format!(
+                    "Credential for package '{}' not present in pocket vault",
+                    package_id
+                ))
+            })?;
 
         let mut hasher = Sha256::new();
         hasher.update(ent.package_id.as_bytes());
@@ -320,7 +344,11 @@ impl PocketVaultState {
         hasher.update(challenge_nonce.as_bytes());
         let digest = hasher.finalize();
 
-        Ok(format!("zkp:pocket-vault:{}:{}", package_id, hex::encode(digest)))
+        Ok(format!(
+            "zkp:pocket-vault:{}:{}",
+            package_id,
+            hex::encode(digest)
+        ))
     }
 }
 
@@ -363,10 +391,7 @@ mod tests {
         let r3 = qr.ingest_frame(frame3).unwrap();
         assert!(r3.is_complete);
         assert_eq!(r3.frames_received, 3);
-        assert_eq!(
-            r3.assembled_payload.unwrap(),
-            "Hello, World! [ZK-PROOF]"
-        );
+        assert_eq!(r3.assembled_payload.unwrap(), "Hello, World! [ZK-PROOF]");
     }
 
     #[test]

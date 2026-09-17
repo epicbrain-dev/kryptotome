@@ -1,7 +1,9 @@
 use chrono::{DateTime, Duration, Utc};
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use kryptotome_core::error::{KryptotomeError, KryptotomeErrorCode};
-use kryptotome_core::party::{AggregatedPartySessionProof, PartyMemberContribution, PartySessionPool};
+use kryptotome_core::party::{
+    AggregatedPartySessionProof, PartyMemberContribution, PartySessionPool,
+};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -1006,7 +1008,9 @@ impl PeerSessionClient {
         if !is_valid {
             return Err(KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
-                message: "Aggregated party session proof signature verification failed or token expired".to_string(),
+                message:
+                    "Aggregated party session proof signature verification failed or token expired"
+                        .to_string(),
             });
         }
 
@@ -1030,8 +1034,10 @@ impl PeerSessionClient {
                 expires_at,
                 mounted_at: Utc::now(),
             };
-            self.last_signatures.insert(package_id.clone(), proof.host_signature_hex.clone());
-            self.mounted_sessions.insert(package_id.clone(), mounted.clone());
+            self.last_signatures
+                .insert(package_id.clone(), proof.host_signature_hex.clone());
+            self.mounted_sessions
+                .insert(package_id.clone(), mounted.clone());
             mounted_list.push(mounted);
         }
 
@@ -1710,8 +1716,14 @@ mod tests {
         session_mgr.register_party_contribution(c2).unwrap();
 
         assert_eq!(session_mgr.party_pool().unwrap().contribution_count(), 2);
-        assert!(session_mgr.party_pool().unwrap().is_package_available("paizo/pathfinder-player-core"));
-        assert!(session_mgr.party_pool().unwrap().is_package_available("paizo/pathfinder-monster-core"));
+        assert!(session_mgr
+            .party_pool()
+            .unwrap()
+            .is_package_available("paizo/pathfinder-player-core"));
+        assert!(session_mgr
+            .party_pool()
+            .unwrap()
+            .is_package_available("paizo/pathfinder-monster-core"));
 
         // Host finalizes session
         let party_proof = session_mgr.finalize_party_session(Some(120)).unwrap();
@@ -1726,7 +1738,13 @@ mod tests {
         assert_eq!(mounted.len(), 2);
         assert!(charlie_client.is_package_mounted("paizo/pathfinder-player-core"));
         assert!(charlie_client.is_package_mounted("paizo/pathfinder-monster-core"));
-        assert!(charlie_client.get_mounted_session("paizo/pathfinder-player-core").unwrap().is_valid());
-        assert!(charlie_client.get_mounted_session("paizo/pathfinder-player-core").unwrap().has_scope("spells"));
+        assert!(charlie_client
+            .get_mounted_session("paizo/pathfinder-player-core")
+            .unwrap()
+            .is_valid());
+        assert!(charlie_client
+            .get_mounted_session("paizo/pathfinder-player-core")
+            .unwrap()
+            .has_scope("spells"));
     }
 }

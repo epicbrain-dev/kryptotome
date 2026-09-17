@@ -1,7 +1,5 @@
 use chrono::Utc;
-use kryptotome_verifier::session::{
-    PeerAccessRequest, PeerAccessResponse, SessionManager,
-};
+use kryptotome_verifier::session::{PeerAccessRequest, PeerAccessResponse, SessionManager};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -23,7 +21,10 @@ impl Default for TableBeaconConfig {
             table_name: "Friday Night Table".to_string(),
             bind_address: "127.0.0.1:8443".to_string(),
             advertised_service: "_kryptotome-table._tcp".to_string(),
-            campaign_package_ids: vec!["paizo/player-core".to_string(), "paizo/gm-core".to_string()],
+            campaign_package_ids: vec![
+                "paizo/player-core".to_string(),
+                "paizo/gm-core".to_string(),
+            ],
         }
     }
 }
@@ -109,13 +110,7 @@ impl AirGappedTableBeaconDaemon {
 
         let mut sm = self.session_manager.lock().unwrap();
         let response = sm
-            .handle_peer_access_request_simple(
-                request,
-                is_entitled,
-                dummy_digest,
-                None,
-                Some(120),
-            )
+            .handle_peer_access_request_simple(request, is_entitled, dummy_digest, None, Some(120))
             .map_err(|e| format!("Peer handshake rejected: {}", e))?;
 
         // Record peer connection

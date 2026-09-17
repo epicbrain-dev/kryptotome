@@ -1,6 +1,8 @@
 use chrono::Utc;
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use kryptotome_core::credential::{CredentialSubject, Entitlement, Issuer, KryptotomeCredential, ProofData};
+use kryptotome_core::credential::{
+    CredentialSubject, Entitlement, Issuer, KryptotomeCredential, ProofData,
+};
 use kryptotome_core::error::{KryptotomeError, KryptotomeErrorCode, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -102,15 +104,17 @@ impl ClaimVoucher {
 
         let mut key_arr = [0u8; 32];
         key_arr.copy_from_slice(&pubkey_bytes);
-        let verifying_key = VerifyingKey::from_bytes(&key_arr).map_err(|e| KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
-            message: format!("Invalid verifying key format: {}", e),
-        })?;
+        let verifying_key =
+            VerifyingKey::from_bytes(&key_arr).map_err(|e| KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
+                message: format!("Invalid verifying key format: {}", e),
+            })?;
 
-        let sig_bytes = hex::decode(&self.signature_hex).map_err(|e| KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp203CorruptedSignature,
-            message: format!("Malformed signature hex: {}", e),
-        })?;
+        let sig_bytes =
+            hex::decode(&self.signature_hex).map_err(|e| KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp203CorruptedSignature,
+                message: format!("Malformed signature hex: {}", e),
+            })?;
 
         if sig_bytes.len() != 64 {
             return Err(KryptotomeError::Detailed {
@@ -148,7 +152,10 @@ pub struct BatchFulfillmentReport {
 }
 
 /// Parses backer survey CSV export from Kickstarter or BackerKit
-pub fn parse_backer_csv(csv_content: &str, platform: CrowdfundingPlatform) -> Result<Vec<BackerRecord>> {
+pub fn parse_backer_csv(
+    csv_content: &str,
+    platform: CrowdfundingPlatform,
+) -> Result<Vec<BackerRecord>> {
     let lines: Vec<&str> = csv_content
         .lines()
         .map(|l| l.trim())
@@ -169,17 +176,17 @@ pub fn parse_backer_csv(csv_content: &str, platform: CrowdfundingPlatform) -> Re
         .collect();
 
     // Map column indices
-    let id_idx = headers.iter().position(|h| {
-        h.contains("backer number") || h.contains("backer id") || h.contains("id")
-    });
+    let id_idx = headers
+        .iter()
+        .position(|h| h.contains("backer number") || h.contains("backer id") || h.contains("id"));
     let email_idx = headers.iter().position(|h| h.contains("email"));
     let name_idx = headers.iter().position(|h| h.contains("name"));
-    let tier_idx = headers.iter().position(|h| {
-        h.contains("reward") || h.contains("tier") || h.contains("pledge tier")
-    });
-    let amount_idx = headers.iter().position(|h| {
-        h.contains("pledge amount") || h.contains("amount") || h.contains("pledged")
-    });
+    let tier_idx = headers
+        .iter()
+        .position(|h| h.contains("reward") || h.contains("tier") || h.contains("pledge tier"));
+    let amount_idx = headers
+        .iter()
+        .position(|h| h.contains("pledge amount") || h.contains("amount") || h.contains("pledged"));
 
     let mut backers = Vec::new();
 
@@ -206,12 +213,10 @@ pub fn parse_backer_csv(csv_content: &str, platform: CrowdfundingPlatform) -> Re
             .and_then(|idx| fields.get(idx).cloned())
             .unwrap_or_default();
 
-        let pledge_amount = amount_idx
-            .and_then(|idx| fields.get(idx))
-            .and_then(|val| {
-                let cleaned = val.replace('$', "").replace(',', "").trim().to_string();
-                cleaned.parse::<f64>().ok()
-            });
+        let pledge_amount = amount_idx.and_then(|idx| fields.get(idx)).and_then(|val| {
+            let cleaned = val.replace(['$', ','], "").trim().to_string();
+            cleaned.parse::<f64>().ok()
+        });
 
         backers.push(BackerRecord {
             backer_id,
@@ -339,7 +344,10 @@ pub fn generate_batch_fulfillment(
 
         // Issue batch W3C Verifiable Credential v2.0
         let cred_id = format!("urn:uuid:cred-backer-{}", backer.backer_id);
-        let holder_urn = format!("urn:kryptotome:commitment:bls12381:backer-{}", backer.backer_id);
+        let holder_urn = format!(
+            "urn:kryptotome:commitment:bls12381:backer-{}",
+            backer.backer_id
+        );
 
         let subject = CredentialSubject {
             id: format!("did:kryptotome:backer:{}", backer.backer_id),
@@ -449,7 +457,10 @@ mod tests {
 
         let mut digests_all = HashMap::new();
         digests_all.insert("paizo/player-core".to_string(), "b3:pcore_hash".to_string());
-        digests_all.insert("paizo/monster-core".to_string(), "b3:mcore_hash".to_string());
+        digests_all.insert(
+            "paizo/monster-core".to_string(),
+            "b3:mcore_hash".to_string(),
+        );
 
         let tiers = vec![
             FulfillmentTierConfig {

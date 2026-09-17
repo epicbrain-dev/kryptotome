@@ -10,16 +10,16 @@ pub use cache::{
     CachedEntitlement, EntitlementCache, InvalidationEvent, InvalidationReason,
     DEFAULT_CACHE_TTL_SECONDS,
 };
+pub use kryptotome_core::{
+    AggregatedPartySessionProof, CompendiumItem, CompendiumMerkleTree, MerkleInclusionProof,
+    MerklePathNode, PartyMemberContribution, PartySessionPool, PasskeyAssertion, PasskeyBinding,
+    PasskeyHardwareManager, PasskeyVerificationResult, SelectiveDisclosureCircuit,
+    SelectiveDisclosureProofBundle,
+};
 pub use session::{
     EntitlementProvider, MountedCompendiumSession, PeerAccessRequest, PeerAccessResponse,
     PeerSessionClient, PeerSessionRenewalRequest, RevocationEntry, ScopePolicy, SessionAttestation,
     SessionManager, SessionRevocationNotice, DEFAULT_SESSION_DURATION_MINUTES,
-};
-pub use kryptotome_core::{
-    CompendiumItem, CompendiumMerkleTree, MerkleInclusionProof, MerklePathNode,
-    AggregatedPartySessionProof, PartyMemberContribution, PartySessionPool,
-    PasskeyAssertion, PasskeyBinding, PasskeyHardwareManager, PasskeyVerificationResult,
-    SelectiveDisclosureCircuit, SelectiveDisclosureProofBundle,
 };
 
 use chrono::{DateTime, Utc};
@@ -27,9 +27,8 @@ use kryptotome_core::{
     deserialize_proof_compressed, deserialize_vk_compressed,
     error::{KryptotomeError, KryptotomeErrorCode, Result},
     get_or_init_entitlement_prepared_vk, get_or_init_selective_disclosure_prepared_vk,
-    prepare_verifying_key, string_to_scalar,
-    verify_entitlement_proof_prepared, verify_kzg_opening, verify_multi_pairing_identity,
-    verify_pairing_equality, verify_plonk_batch_opening,
+    prepare_verifying_key, string_to_scalar, verify_entitlement_proof_prepared, verify_kzg_opening,
+    verify_multi_pairing_identity, verify_pairing_equality, verify_plonk_batch_opening,
     zkp::{ChallengeNonce, VerificationKey, ZkProof},
     EntitlementProofBundle, G1Point, G2Point, Groth16PreparedVerifyingKey, Groth16VerifyingKey,
     ScalarField, TargetField,
@@ -473,11 +472,15 @@ mod tests {
         .unwrap();
 
         // Verification passes with expected challenge nonce
-        let is_valid = verifier.verify_selective_disclosure(&bundle, challenge_nonce).unwrap();
+        let is_valid = verifier
+            .verify_selective_disclosure(&bundle, challenge_nonce)
+            .unwrap();
         assert!(is_valid);
 
         // Replay rejected: second attempt with same nonce fails
-        let replay_err = verifier.verify_selective_disclosure(&bundle, challenge_nonce).unwrap_err();
+        let replay_err = verifier
+            .verify_selective_disclosure(&bundle, challenge_nonce)
+            .unwrap_err();
         assert!(matches!(
             replay_err,
             KryptotomeError::Detailed {

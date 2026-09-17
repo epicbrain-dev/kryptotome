@@ -155,35 +155,31 @@ impl PasskeyHardwareManager {
             });
         }
 
-
         // 4. Cryptographic signature check: verify signature over (authData || sha256(clientDataJSON))
         let client_data_hash = Sha256::digest(assertion.client_data_json.as_bytes());
         let mut signed_data = Vec::with_capacity(auth_data_bytes.len() + 32);
         signed_data.extend_from_slice(&auth_data_bytes);
         signed_data.extend_from_slice(&client_data_hash);
 
-        let pubkey_bytes = hex::decode(&binding.public_key_hex).map_err(|_| {
-            KryptotomeError::Detailed {
+        let pubkey_bytes =
+            hex::decode(&binding.public_key_hex).map_err(|_| KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
                 message: "Invalid binding public key hex".to_string(),
-            }
-        })?;
+            })?;
 
         let mut key_arr = [0u8; 32];
         key_arr.copy_from_slice(&pubkey_bytes);
-        let verifying_key = VerifyingKey::from_bytes(&key_arr).map_err(|e| {
-            KryptotomeError::Detailed {
+        let verifying_key =
+            VerifyingKey::from_bytes(&key_arr).map_err(|e| KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
                 message: format!("Invalid ed25519 verifying key: {}", e),
-            }
-        })?;
+            })?;
 
-        let sig_bytes = hex::decode(&assertion.signature_hex).map_err(|_| {
-            KryptotomeError::Detailed {
+        let sig_bytes =
+            hex::decode(&assertion.signature_hex).map_err(|_| KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
                 message: "Malformed assertion signature hex".to_string(),
-            }
-        })?;
+            })?;
 
         if sig_bytes.len() != 64 {
             return Err(KryptotomeError::Detailed {
@@ -192,12 +188,11 @@ impl PasskeyHardwareManager {
             });
         }
 
-        let signature = Signature::from_slice(&sig_bytes).map_err(|e| {
-            KryptotomeError::Detailed {
+        let signature =
+            Signature::from_slice(&sig_bytes).map_err(|e| KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
                 message: format!("Invalid signature format: {}", e),
-            }
-        })?;
+            })?;
 
         verifying_key
             .verify(&signed_data, &signature)
@@ -288,10 +283,7 @@ mod tests {
 
         // Verify valid assertion
         let result = PasskeyHardwareManager::verify_assertion(
-            &binding,
-            challenge,
-            &assertion,
-            true, // require UV
+            &binding, challenge, &assertion, true, // require UV
         )
         .unwrap();
 

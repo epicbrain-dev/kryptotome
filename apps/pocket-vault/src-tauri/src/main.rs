@@ -16,7 +16,10 @@ fn main() {
         "Biometric security: active ({})",
         state.biometric.is_biometric_available()
     );
-    println!("Available entitlements: {}", state.entitlements.lock().unwrap().len());
+    println!(
+        "Available entitlements: {}",
+        state.entitlements.lock().unwrap().len()
+    );
 }
 
 // Mobile/Desktop Command Handlers (bridge to webview via Tauri IPC / JS bridge)

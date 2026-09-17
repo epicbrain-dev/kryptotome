@@ -119,10 +119,11 @@ impl AggregatedPartySessionProof {
 
         // 2. Resolve host public key
         let target_pubkey_hex = expected_host_pubkey_hex.unwrap_or(&self.host_public_key_hex);
-        let pubkey_bytes = hex::decode(target_pubkey_hex).map_err(|_| KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
-            message: "Malformed host public key hex in party session proof".to_string(),
-        })?;
+        let pubkey_bytes =
+            hex::decode(target_pubkey_hex).map_err(|_| KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
+                message: "Malformed host public key hex in party session proof".to_string(),
+            })?;
 
         if pubkey_bytes.len() != 32 {
             return Err(KryptotomeError::Detailed {
@@ -133,16 +134,18 @@ impl AggregatedPartySessionProof {
 
         let mut key_arr = [0u8; 32];
         key_arr.copy_from_slice(&pubkey_bytes);
-        let verifying_key = VerifyingKey::from_bytes(&key_arr).map_err(|e| KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
-            message: format!("Invalid ed25519 verifying key: {}", e),
-        })?;
+        let verifying_key =
+            VerifyingKey::from_bytes(&key_arr).map_err(|e| KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
+                message: format!("Invalid ed25519 verifying key: {}", e),
+            })?;
 
         // 3. Verify signature
-        let sig_bytes = hex::decode(&self.host_signature_hex).map_err(|_| KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
-            message: "Malformed host signature hex".to_string(),
-        })?;
+        let sig_bytes =
+            hex::decode(&self.host_signature_hex).map_err(|_| KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
+                message: "Malformed host signature hex".to_string(),
+            })?;
 
         if sig_bytes.len() != 64 {
             return Err(KryptotomeError::Detailed {
@@ -151,10 +154,11 @@ impl AggregatedPartySessionProof {
             });
         }
 
-        let signature = Signature::from_slice(&sig_bytes).map_err(|e| KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
-            message: format!("Invalid signature format: {}", e),
-        })?;
+        let signature =
+            Signature::from_slice(&sig_bytes).map_err(|e| KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
+                message: format!("Invalid signature format: {}", e),
+            })?;
 
         let msg = Self::compute_signing_message(
             &self.session_id,
@@ -178,7 +182,11 @@ pub struct PartySessionPool {
 }
 
 impl PartySessionPool {
-    pub fn new(session_id: impl Into<String>, host_peer_id: impl Into<String>, table_nonce: impl Into<String>) -> Self {
+    pub fn new(
+        session_id: impl Into<String>,
+        host_peer_id: impl Into<String>,
+        table_nonce: impl Into<String>,
+    ) -> Self {
         Self {
             session_id: session_id.into(),
             host_peer_id: host_peer_id.into(),
@@ -216,11 +224,12 @@ impl PartySessionPool {
             });
         }
 
-
         // Avoid exact duplicates
-        if self.contributions.iter().any(|c| {
-            c.peer_id == contribution.peer_id && c.package_id == contribution.package_id
-        }) {
+        if self
+            .contributions
+            .iter()
+            .any(|c| c.peer_id == contribution.peer_id && c.package_id == contribution.package_id)
+        {
             return Ok(());
         }
 
@@ -256,7 +265,9 @@ impl PartySessionPool {
 
     /// Checks if any player in the party has contributed the requested package
     pub fn is_package_available(&self, package_id: &str) -> bool {
-        self.contributions.iter().any(|c| c.package_id == package_id)
+        self.contributions
+            .iter()
+            .any(|c| c.package_id == package_id)
     }
 
     /// Computes aggregated pool digest over all contributions
@@ -267,10 +278,11 @@ impl PartySessionPool {
 
         // Sort contributions deterministically by package_id and peer_id
         let mut sorted_contribs = self.contributions.clone();
-        sorted_contribs.sort_by(|a, b| (&a.package_id, &a.peer_id).cmp(&(&b.package_id, &b.peer_id)));
+        sorted_contribs
+            .sort_by(|a, b| (&a.package_id, &a.peer_id).cmp(&(&b.package_id, &b.peer_id)));
 
         for c in &sorted_contribs {
-            hasher.update(&c.compute_digest());
+            hasher.update(c.compute_digest());
         }
 
         hex::encode(hasher.finalize())

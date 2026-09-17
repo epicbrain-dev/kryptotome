@@ -7,4 +7,3 @@ pub mod scanner;
 pub mod table_beacon;
 pub mod tournament;
 pub mod voucher;
-

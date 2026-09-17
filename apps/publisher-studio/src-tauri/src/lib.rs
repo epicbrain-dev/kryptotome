@@ -1,17 +1,17 @@
-use serde::{Deserialize, Serialize};
-use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use blake3::Hasher;
 use chrono::Utc;
-use std::sync::Mutex;
+use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use kryptotome_core::error::{KryptotomeError, KryptotomeErrorCode};
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 
 pub use kryptotome_cli::crowdfunding::{
-    CrowdfundingPlatform, BackerRecord, FulfillmentTierConfig, ClaimVoucher,
-    BatchFulfillmentReport, parse_backer_csv, generate_batch_fulfillment,
+    generate_batch_fulfillment, parse_backer_csv, BackerRecord, BatchFulfillmentReport,
+    ClaimVoucher, CrowdfundingPlatform, FulfillmentTierConfig,
 };
 pub use kryptotome_cli::voucher::{
-    PhysicalVoucherFormat, PhysicalVoucherBatchSpec, PhysicalVoucherRecord,
-    NfcTagPayload, generate_voucher_batch, format_ndef_payload,
+    format_ndef_payload, generate_voucher_batch, NfcTagPayload, PhysicalVoucherBatchSpec,
+    PhysicalVoucherFormat, PhysicalVoucherRecord,
 };
 
 /// Maximum bounds to prevent memory exhaustion / DoS in enterprise environments
@@ -86,6 +86,12 @@ pub struct PublisherAuditChronicle {
     entries: Mutex<Vec<AuditLogEntry>>,
 }
 
+impl Default for PublisherAuditChronicle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PublisherAuditChronicle {
     pub fn new() -> Self {
         Self {
@@ -129,20 +135,30 @@ pub fn sanitize_asset_path(path: &str) -> Result<String, KryptotomeError> {
     if clean.contains("..") || clean.starts_with('/') {
         return Err(KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp106InvalidManifestSchema,
-            message: format!("Security violation: Invalid asset path containing traversal sequences: {}", path),
+            message: format!(
+                "Security violation: Invalid asset path containing traversal sequences: {}",
+                path
+            ),
         });
     }
     Ok(clean)
 }
 
 /// Scan asset contents and compute BLAKE3 hash with boundary checks
-pub fn hash_asset_content(path: &str, mime_type: &str, content: &[u8]) -> Result<RulebookAsset, KryptotomeError> {
+pub fn hash_asset_content(
+    path: &str,
+    mime_type: &str,
+    content: &[u8],
+) -> Result<RulebookAsset, KryptotomeError> {
     let safe_path = sanitize_asset_path(path)?;
 
     if content.len() as u64 > MAX_ASSET_SIZE_BYTES {
         return Err(KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp502MissingOrCorruptAsset,
-            message: format!("Asset {} exceeds enterprise size limit of {} bytes", path, MAX_ASSET_SIZE_BYTES),
+            message: format!(
+                "Asset {} exceeds enterprise size limit of {} bytes",
+                path, MAX_ASSET_SIZE_BYTES
+            ),
         });
     }
 
@@ -150,7 +166,13 @@ pub fn hash_asset_content(path: &str, mime_type: &str, content: &[u8]) -> Result
     hasher.update(content);
     let hash_hex = hasher.finalize().to_hex().to_string();
 
-    AUDIT_CHRONICLE.record("HASH_ASSET", None, &hash_hex, "SUCCESS", &format!("Hashed asset: {}", safe_path));
+    AUDIT_CHRONICLE.record(
+        "HASH_ASSET",
+        None,
+        &hash_hex,
+        "SUCCESS",
+        &format!("Hashed asset: {}", safe_path),
+    );
 
     Ok(RulebookAsset {
         path: safe_path,
@@ -161,7 +183,9 @@ pub fn hash_asset_content(path: &str, mime_type: &str, content: &[u8]) -> Result
 }
 
 /// Validate publisher manifest schema compliance (Paizo ORC, CC-BY, etc.)
-pub fn validate_package_schema(manifest: &StudioPackageManifest) -> Result<(), Vec<SchemaValidationError>> {
+pub fn validate_package_schema(
+    manifest: &StudioPackageManifest,
+) -> Result<(), Vec<SchemaValidationError>> {
     let mut errors = Vec::new();
 
     if manifest.package_id.trim().is_empty() {
@@ -188,7 +212,8 @@ pub fn validate_package_schema(manifest: &StudioPackageManifest) -> Result<(), V
         });
     }
 
-    if manifest.license == LicenseSchema::PaizoOrc && manifest.license_attribution.trim().is_empty() {
+    if manifest.license == LicenseSchema::PaizoOrc && manifest.license_attribution.trim().is_empty()
+    {
         errors.push(SchemaValidationError {
             field: "license_attribution".into(),
             message: "Paizo ORC license requires explicit copyright attribution statement.".into(),
@@ -196,7 +221,9 @@ pub fn validate_package_schema(manifest: &StudioPackageManifest) -> Result<(), V
         });
     }
 
-    if manifest.license == LicenseSchema::CreativeCommonsBy4 && manifest.license_attribution.trim().is_empty() {
+    if manifest.license == LicenseSchema::CreativeCommonsBy4
+        && manifest.license_attribution.trim().is_empty()
+    {
         errors.push(SchemaValidationError {
             field: "license_attribution".into(),
             message: "CC-BY-4.0 license requires author attribution notices.".into(),
@@ -254,11 +281,10 @@ pub fn sign_and_build_package(
     manifest: StudioPackageManifest,
     signing_key_bytes: &[u8; 32],
 ) -> Result<BuiltPackageBundle, KryptotomeError> {
-    validate_package_schema(&manifest)
-        .map_err(|errs| KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp106InvalidManifestSchema,
-            message: format!("Schema validation failed: {:?}", errs),
-        })?;
+    validate_package_schema(&manifest).map_err(|errs| KryptotomeError::Detailed {
+        code: KryptotomeErrorCode::Kryp106InvalidManifestSchema,
+        message: format!("Schema validation failed: {:?}", errs),
+    })?;
 
     let signing_key = SigningKey::from_bytes(signing_key_bytes);
     let verifying_key: VerifyingKey = signing_key.verifying_key();
@@ -306,7 +332,11 @@ mod tests {
         assert!(!asset1.blake3_hash.is_empty());
         assert_eq!(asset1.size_bytes, pdf_data.len() as u64);
 
-        let pkg_hash = compute_package_hash("pkg-cosmic-horror-5e", "1.0.0", &[asset1.clone()]);
+        let pkg_hash = compute_package_hash(
+            "pkg-cosmic-horror-5e",
+            "1.0.0",
+            std::slice::from_ref(&asset1),
+        );
         assert!(!pkg_hash.is_empty());
 
         let manifest = StudioPackageManifest {
@@ -329,7 +359,7 @@ mod tests {
     fn test_sign_and_build_package_flow() {
         let md_data = b"# Spells\nArcane Blast...";
         let asset = hash_asset_content("spells.md", "text/markdown", md_data).unwrap();
-        let pkg_hash = compute_package_hash("pkg-spells", "1.0.0", &[asset.clone()]);
+        let pkg_hash = compute_package_hash("pkg-spells", "1.0.0", std::slice::from_ref(&asset));
 
         let manifest = StudioPackageManifest {
             package_id: "pkg-spells".into(),
@@ -357,6 +387,9 @@ mod tests {
     fn test_path_traversal_sanitization() {
         assert!(sanitize_asset_path("../secrets.txt").is_err());
         assert!(sanitize_asset_path("/etc/passwd").is_err());
-        assert_eq!(sanitize_asset_path("rules\\chapter1.pdf").unwrap(), "rules/chapter1.pdf");
+        assert_eq!(
+            sanitize_asset_path("rules\\chapter1.pdf").unwrap(),
+            "rules/chapter1.pdf"
+        );
     }
 }

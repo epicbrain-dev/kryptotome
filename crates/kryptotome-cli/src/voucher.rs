@@ -100,15 +100,17 @@ impl PhysicalVoucherRecord {
 
         let mut key_arr = [0u8; 32];
         key_arr.copy_from_slice(&pubkey_bytes);
-        let verifying_key = VerifyingKey::from_bytes(&key_arr).map_err(|e| KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
-            message: format!("Invalid verifying key format: {}", e),
-        })?;
+        let verifying_key =
+            VerifyingKey::from_bytes(&key_arr).map_err(|e| KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
+                message: format!("Invalid verifying key format: {}", e),
+            })?;
 
-        let sig_bytes = hex::decode(&self.signature_hex).map_err(|e| KryptotomeError::Detailed {
-            code: KryptotomeErrorCode::Kryp203CorruptedSignature,
-            message: format!("Malformed signature hex: {}", e),
-        })?;
+        let sig_bytes =
+            hex::decode(&self.signature_hex).map_err(|e| KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp203CorruptedSignature,
+                message: format!("Malformed signature hex: {}", e),
+            })?;
 
         if sig_bytes.len() != 64 {
             return Err(KryptotomeError::Detailed {
@@ -235,12 +237,13 @@ pub fn format_ndef_payload(voucher: &PhysicalVoucherRecord) -> Result<NfcTagPayl
     // Identifier code: 0x00 (custom scheme)
     // URI payload bytes
     let uri_bytes = uri.as_bytes();
-    let mut ndef = Vec::new();
-    ndef.push(0xD1); // NDEF header
-    ndef.push(0x01); // Type length = 1
-    ndef.push((uri_bytes.len() + 1) as u8); // Payload length
-    ndef.push(0x55); // Record type 'U' (URI)
-    ndef.push(0x00); // URI prefix code (none, full URI following)
+    let mut ndef = vec![
+        0xD1,                        // NDEF header
+        0x01,                        // Type length = 1
+        (uri_bytes.len() + 1) as u8, // Payload length
+        0x55,                        // Record type 'U' (URI)
+        0x00,                        // URI prefix code (none, full URI following)
+    ];
     ndef.extend_from_slice(uri_bytes);
 
     let chip_type = if ndef.len() <= 144 {
@@ -289,7 +292,9 @@ mod tests {
 
             // NDEF payload generation
             let ndef = format_ndef_payload(v).unwrap();
-            assert!(ndef.ndef_uri.starts_with("kryptotome://voucher/claim?code="));
+            assert!(ndef
+                .ndef_uri
+                .starts_with("kryptotome://voucher/claim?code="));
             assert_eq!(ndef.ndef_record_bytes[3], 0x55); // 'U'
             assert!(ndef.lockable);
         }

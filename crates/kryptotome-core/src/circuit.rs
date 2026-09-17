@@ -51,7 +51,8 @@ pub fn get_or_init_entitlement_prepared_vk() -> &'static Groth16PreparedVerifyin
 }
 
 /// Returns a reference to the global lazily initialized Groth16 parameters for selective disclosure
-pub fn get_or_init_selective_disclosure_setup() -> &'static (Groth16ProvingKey, Groth16VerifyingKey) {
+pub fn get_or_init_selective_disclosure_setup() -> &'static (Groth16ProvingKey, Groth16VerifyingKey)
+{
     GLOBAL_SELECTIVE_SETUP.get_or_init(|| {
         use rand::SeedableRng;
         let mut rng = rand::rngs::StdRng::seed_from_u64(0x53656c656374);
@@ -67,7 +68,6 @@ pub fn get_or_init_selective_disclosure_prepared_vk() -> &'static Groth16Prepare
         prepare_verifying_key(vk)
     })
 }
-
 
 /// R1CS Entitlement Constraint Circuit for Kryptotome
 ///
@@ -458,16 +458,19 @@ impl ConstraintSynthesizer<ScalarField> for SelectiveDisclosureCircuit {
     ) -> std::result::Result<(), SynthesisError> {
         // 1. Public Inputs
         let nonce_var = FpVar::new_input(cs.clone(), || {
-            self.challenge_nonce.ok_or(SynthesisError::AssignmentMissing)
+            self.challenge_nonce
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
         let item_digest_var = FpVar::new_input(cs.clone(), || {
             self.item_digest.ok_or(SynthesisError::AssignmentMissing)
         })?;
         let publisher_pubkey_var = FpVar::new_input(cs.clone(), || {
-            self.publisher_pubkey.ok_or(SynthesisError::AssignmentMissing)
+            self.publisher_pubkey
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
         let holder_commitment_var = FpVar::new_input(cs.clone(), || {
-            self.holder_commitment.ok_or(SynthesisError::AssignmentMissing)
+            self.holder_commitment
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
 
         // 2. Private Witnesses
@@ -475,16 +478,20 @@ impl ConstraintSynthesizer<ScalarField> for SelectiveDisclosureCircuit {
             self.holder_secret.ok_or(SynthesisError::AssignmentMissing)
         })?;
         let blinding_var = FpVar::new_witness(cs.clone(), || {
-            self.blinding_factor.ok_or(SynthesisError::AssignmentMissing)
+            self.blinding_factor
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
         let signature_var = FpVar::new_witness(cs.clone(), || {
-            self.signature_witness.ok_or(SynthesisError::AssignmentMissing)
+            self.signature_witness
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
         let compendium_root_var = FpVar::new_witness(cs.clone(), || {
-            self.compendium_root.ok_or(SynthesisError::AssignmentMissing)
+            self.compendium_root
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
         let merkle_acc_var = FpVar::new_witness(cs.clone(), || {
-            self.merkle_accumulator.ok_or(SynthesisError::AssignmentMissing)
+            self.merkle_accumulator
+                .ok_or(SynthesisError::AssignmentMissing)
         })?;
 
         // 3. Constraint 1: Holder Commitment Binding
@@ -526,7 +533,10 @@ pub fn generate_selective_disclosure_setup<R: RngCore + CryptoRng>(
     Groth16::<Bls12_381>::circuit_specific_setup(blank_circuit, rng).map_err(|e| {
         KryptotomeError::Detailed {
             code: KryptotomeErrorCode::Kryp304ProverSetupFailed,
-            message: format!("Failed to generate Groth16 selective disclosure parameters: {}", e),
+            message: format!(
+                "Failed to generate Groth16 selective disclosure parameters: {}",
+                e
+            ),
         }
     })
 }
@@ -595,6 +605,7 @@ pub fn compute_selective_signature_witness(
 }
 
 /// High-level prover helper: generates a selective disclosure proof for an individual item
+#[allow(clippy::too_many_arguments)]
 pub fn prove_selective_disclosure_for_item<R: RngCore + CryptoRng>(
     pk: &Groth16ProvingKey,
     secret_bytes: &[u8],
@@ -633,12 +644,7 @@ pub fn prove_selective_disclosure_for_item<R: RngCore + CryptoRng>(
     );
 
     let proof = create_selective_disclosure_proof(pk, circuit, rng)?;
-    let public_inputs = vec![
-        nonce,
-        item_digest,
-        publisher_pubkey,
-        holder_commitment,
-    ];
+    let public_inputs = vec![nonce, item_digest, publisher_pubkey, holder_commitment];
 
     Ok((proof, public_inputs))
 }
@@ -710,7 +716,6 @@ impl SelectiveDisclosureProofBundle {
     }
 }
 
-
 /// Maps string / bytes identifier into a uniform scalar field element for circuit inputs
 pub fn string_to_scalar(s: &str) -> ScalarField {
     let mut hasher = Sha256::new();
@@ -719,7 +724,6 @@ pub fn string_to_scalar(s: &str) -> ScalarField {
     let digest = hasher.finalize();
     ScalarField::from_be_bytes_mod_order(&digest)
 }
-
 
 // ============================================================================
 // Proof & Parameter Compact Serialization / Deserialization
@@ -1556,4 +1560,3 @@ mod tests {
         assert_eq!(bundle, bundle_deser);
     }
 }
-
