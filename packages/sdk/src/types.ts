@@ -164,3 +164,175 @@ export interface ErrataApplyResult {
   preservedHomebrewCount: number;
   compendium: CompendiumPackageData;
 }
+
+// ============================================================================
+// Section 13.2: Advanced Cryptography & Table Privacy
+// ============================================================================
+
+export interface CompendiumItem {
+  id: string;
+  itemType: string;
+  digest: string;
+}
+
+export interface MerklePathNode {
+  hashHex: string;
+  isLeft: boolean;
+}
+
+export interface MerkleInclusionProof {
+  itemId: string;
+  itemType: string;
+  itemDigest: string;
+  leafHashHex: string;
+  path: MerklePathNode[];
+  rootHex: string;
+}
+
+export interface SelectiveDisclosureProofBundle {
+  version: number;
+  curve: string;
+  proofSystem: string;
+  proofBase64: string;
+  publicInputsBase64: string;
+  challengeNonce: string;
+  itemDigest: string;
+  publisherPubkey: string;
+  holderCommitmentUrn: string;
+  compendiumRoot?: string;
+}
+
+export interface PartyMemberContribution {
+  peerId: string;
+  packageId: string;
+  contentDigest: string;
+  holderCommitment: string;
+  proof: string;
+  permittedScopes: string[];
+  signature: string;
+}
+
+export interface AggregatedPartySessionProof {
+  sessionId: string;
+  tableNonce: string;
+  hostPeerId: string;
+  pooledPackages: string[];
+  participantPeerIds: string[];
+  poolDigest: string;
+  hostPublicKeyHex: string;
+  hostSignatureHex: string;
+  issuedAt: string;
+  validUntil: string;
+}
+
+export interface PasskeyBinding {
+  credentialId: string;
+  holderCommitmentUrn: string;
+  publicKeyHex: string;
+  rpId: string;
+  algorithm: string;
+  createdAt: string;
+}
+
+export interface PasskeyAssertion {
+  credentialId: string;
+  authenticatorData: string;
+  clientDataJson: string;
+  signatureHex: string;
+  userHandle?: string;
+}
+
+export interface PasskeyVerificationResult {
+  verified: boolean;
+  userPresent: boolean;
+  userVerified: boolean;
+  holderCommitmentUrn: string;
+  verifiedAt: string;
+}
+
+// ============================================================================
+// Section 13.3: Indie Publisher & Creator Tooling
+// ============================================================================
+
+export type CrowdfundingPlatform = 'kickstarter' | 'backerkit' | 'custom';
+
+export interface BackerRecord {
+  backerId: string;
+  email: string;
+  name: string;
+  rewardTier: string;
+  pledgeAmount?: number;
+  rewardPackageIds: string[];
+}
+
+export interface FulfillmentTierConfig {
+  tierName: string;
+  packageIds: string[];
+  contentDigests?: Record<string, string>;
+}
+
+export interface ClaimVoucher {
+  voucherId: string;
+  backerId: string;
+  packageId: string;
+  contentDigest: string;
+  activationToken: string;
+  claimUrl: string;
+  publisherPubkeyHex: string;
+  signatureHex: string;
+  issuedAt: string;
+  expiresAt?: string;
+}
+
+export interface BatchFulfillmentReport {
+  platform: CrowdfundingPlatform;
+  publisherId: string;
+  totalBackers: number;
+  fulfilledCredentialsCount: number;
+  vouchers: ClaimVoucher[];
+  credentials: KryptotomeCredential[];
+}
+
+export type PhysicalVoucherFormat = 'scratch-off-code' | 'nfc-tag' | 'hybrid';
+
+export interface PhysicalVoucherBatchSpec {
+  publisherId: string;
+  packageId: string;
+  contentDigest: string;
+  quantity: number;
+  format: PhysicalVoucherFormat;
+  codePrefix?: string;
+  validDurationDays?: number;
+}
+
+export interface PhysicalVoucherRecord {
+  voucherId: string;
+  code: string;
+  packageId: string;
+  contentDigest: string;
+  format: PhysicalVoucherFormat;
+  saltHex: string;
+  publisherPubkeyHex: string;
+  signatureHex: string;
+  nfcNdefUri?: string;
+  createdAt: string;
+  expiresAt?: string;
+}
+
+export interface NfcTagPayload {
+  ndefUri: string;
+  ndefRecordBytes: Uint8Array;
+  chipType: string;
+  lockable: boolean;
+}
+
+export interface VoucherRedemptionResult {
+  valid: boolean;
+  code: string;
+  packageId: string;
+  contentDigest: string;
+  publisherPubkeyHex: string;
+  redeemedAt: string;
+}
+
+

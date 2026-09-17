@@ -4,6 +4,9 @@ use aes_gcm::{Aes256Gcm, Nonce as AesNonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use chacha20poly1305::{ChaCha20Poly1305, Nonce as ChaChaNonce};
 use kryptotome_core::error::{KryptotomeError, KryptotomeErrorCode, Result};
+use kryptotome_core::{
+    PasskeyAssertion, PasskeyBinding, PasskeyHardwareManager, PasskeyVerificationResult,
+};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -132,6 +135,9 @@ pub struct EncryptedKeystore {
     pub nonce_hex: String,
     /// Encrypted ciphertext with appended 16-byte authentication tag in hex
     pub ciphertext_hex: String,
+    /// Optional FIDO2 / WebAuthn hardware passkey binding enforcing biometric/presence
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub passkey_binding: Option<PasskeyBinding>,
 }
 
 impl EncryptedKeystore {
@@ -196,7 +202,44 @@ impl EncryptedKeystore {
             kdf,
             nonce_hex: hex_encode(&nonce_bytes),
             ciphertext_hex: hex_encode(&ciphertext_bytes),
+            passkey_binding: None,
         })
+    }
+
+    /// Attaches a hardware passkey binding to the encrypted keystore
+    pub fn with_passkey_binding(mut self, binding: PasskeyBinding) -> Self {
+        self.passkey_binding = Some(binding);
+        self
+    }
+
+    /// Returns a reference to the attached passkey binding, if any
+    pub fn passkey_binding(&self) -> Option<&PasskeyBinding> {
+        self.passkey_binding.as_ref()
+    }
+
+    /// Sets or removes the passkey binding
+    pub fn set_passkey_binding(&mut self, binding: Option<PasskeyBinding>) {
+        self.passkey_binding = binding;
+    }
+
+    /// Verifies hardware passkey presence and user verification before vault access
+    pub fn verify_passkey_presence(
+        &self,
+        assertion: &PasskeyAssertion,
+        expected_challenge: &str,
+        require_user_verification: bool,
+    ) -> Result<PasskeyVerificationResult> {
+        let binding = self.passkey_binding.as_ref().ok_or_else(|| KryptotomeError::Detailed {
+            code: KryptotomeErrorCode::Kryp604KeyCustodyError,
+            message: "No passkey binding associated with this keystore".to_string(),
+        })?;
+
+        PasskeyHardwareManager::verify_assertion(
+            binding,
+            expected_challenge,
+            assertion,
+            require_user_verification,
+        )
     }
 
     /// Decrypts the keystore with a passphrase, recovering the original Keyring
@@ -438,5 +481,54 @@ mod tests {
         assert_eq!(decrypted.secret_bytes(), keyring.secret_bytes());
 
         let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn test_encrypted_keystore_with_passkey_binding() {
+        let keyring = Keyring::generate();
+        let passphrase = "vault-passphrase-hardware";
+        let mut keystore = EncryptedKeystore::encrypt_with_params(
+            &keyring,
+            passphrase,
+            EncryptionCipher::Aes256Gcm,
+            KdfParams::fast(),
+        )
+        .unwrap();
+
+        // Attach passkey hardware binding
+        let mut csprng = rand::rngs::OsRng;
+        let keypair = ed25519_dalek::SigningKey::generate(&mut csprng);
+        let pubkey_hex = hex_encode(keypair.verifying_key().as_bytes());
+        let binding = PasskeyHardwareManager::create_binding(
+            "hardware-credential-yubi-01",
+            "urn:kryptotome:commitment:bls12381:holder42",
+            &pubkey_hex,
+            "localhost",
+        )
+        .unwrap();
+        keystore.set_passkey_binding(Some(binding));
+
+        assert!(keystore.passkey_binding().is_some());
+
+        // Perform valid assertion with biometric & presence
+        let challenge = "passkey-unlock-challenge-1234";
+        let assertion = PasskeyHardwareManager::create_mock_assertion(
+            &keypair,
+            "hardware-credential-yubi-01",
+            challenge,
+            "https://localhost",
+            true, // user_verified
+        );
+
+        let result = keystore.verify_passkey_presence(&assertion, challenge, true).unwrap();
+        assert!(result.verified);
+        assert!(result.user_present);
+        assert!(result.user_verified);
+
+        // Serialization roundtrip preserves passkey_binding
+        let json = keystore.to_json().unwrap();
+        let loaded = EncryptedKeystore::from_json(&json).unwrap();
+        assert_eq!(keystore, loaded);
+        assert!(loaded.passkey_binding().is_some());
     }
 }

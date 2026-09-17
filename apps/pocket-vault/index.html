@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kryptotome Pocket Vault</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700;800&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body class="pocket-body">
+  <!-- Arcane Mobile App Header -->
+  <header class="app-header">
+    <div class="brand-badge">
+      <div class="brand-icon">
+        <span class="relic-glyph">🛡️</span>
+      </div>
+      <div>
+        <div class="brand-title">Pocket Vault</div>
+        <div class="brand-sub">Arcane Enclave Bound</div>
+      </div>
+    </div>
+    <div class="enclave-status">
+      <span class="enclave-dot"></span>
+      <span id="biometricState">Biometrics Active</span>
+    </div>
+  </header>
+
+  <!-- Screen Content Area -->
+  <main class="screen-container">
+    <!-- Screen 1: Credentials Library -->
+    <section id="vault-screen" class="screen active">
+      <div class="screen-header-flex">
+        <h2 class="screen-heading">Arcane Entitlements</h2>
+        <span class="screen-counter">2 Tomes Unlocked</span>
+      </div>
+
+      <div class="credential-card">
+        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+        <div class="card-corner bl"></div><div class="card-corner br"></div>
+        
+        <div class="cred-header">
+          <div>
+            <div class="cred-title">Pathfinder 2e: Player Core</div>
+            <div class="cred-publisher">Paizo Inc. • ORC License Bound</div>
+          </div>
+          <span class="wax-badge valid">⚜ W3C VC</span>
+        </div>
+        <div class="cred-digest">BLAKE3: 73a85757532b62fd82a3b611d03ce5de2f...</div>
+        <div class="cred-actions">
+          <button class="small-btn btn-gilded" onclick="generateQuickProof('paizo/player-core')">Cast ZK Proof</button>
+          <button class="small-btn btn-ghost" onclick="shareBeacon('paizo/player-core')">Leyline Broadcast</button>
+        </div>
+      </div>
+
+      <div class="credential-card">
+        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+        <div class="card-corner bl"></div><div class="card-corner br"></div>
+
+        <div class="cred-header">
+          <div>
+            <div class="cred-title">Core Spells & Cantrips</div>
+            <div class="cred-publisher">Open Gaming Foundation • SRD 5.1</div>
+          </div>
+          <span class="wax-badge valid">⚜ W3C VC</span>
+        </div>
+        <div class="cred-digest">BLAKE3: 4b227777d4da1fc6e11e80a06451ef90...</div>
+        <div class="cred-actions">
+          <button class="small-btn btn-gilded" onclick="generateQuickProof('open-rpg/core-spells')">Cast ZK Proof</button>
+          <button class="small-btn btn-ghost" onclick="shareBeacon('open-rpg/core-spells')">Leyline Broadcast</button>
+        </div>
+      </div>
+
+      <div class="credential-card">
+        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+        <div class="card-corner bl"></div><div class="card-corner br"></div>
+
+        <div class="cred-header">
+          <div>
+            <div class="cred-title">Pathfinder Society: Official Tournament Pass</div>
+            <div class="cred-publisher">PaizoCon & GenCon Fast Check-In • Zero PII</div>
+          </div>
+          <span class="wax-badge valid">⚜ PFS Legal</span>
+        </div>
+        <div class="cred-digest">BUILD HASH: b8f912c0... (28 Feats Entitled)</div>
+        <div class="cred-actions">
+          <button class="small-btn btn-gilded" onclick="generateTournamentTicket('Valeros of Andoran')">Issue Check-In Ticket</button>
+          <button class="small-btn btn-ghost" onclick="verifyTournamentFast()">Fast Verify (&lt;10ms)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 2: Arcane Scrying Lens (QR Scanner) -->
+    <section id="scanner-screen" class="screen">
+      <div class="screen-header-flex">
+        <div>
+          <h2 class="screen-heading">Arcane Scrying Lens</h2>
+          <p class="screen-sub">Scan air-gapped convention glyphs or physical hardcover vouchers.</p>
+        </div>
+      </div>
+
+      <div class="scanner-card">
+        <div class="astrolabe-viewfinder">
+          <div class="astrolabe-ring-outer"></div>
+          <div class="astrolabe-ring-inner"></div>
+          <div class="scan-laser"></div>
+          <span class="scrying-core">🔮</span>
+        </div>
+      </div>
+
+      <p class="scanner-hint" id="scannerHint">Align scrying lens with voucher glyph or camera feed</p>
+      
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="scanProgress"></div>
+      </div>
+
+      <div style="margin-top: 18px; display: flex; gap: 8px;">
+        <button class="small-btn btn-gilded" style="flex: 1;" id="simulateFrameBtn">Simulate Chunk Ingest</button>
+      </div>
+    </section>
+
+    <!-- Screen 3: Table Session Beacon (Leyline Nexus) -->
+    <section id="beacon-screen" class="screen">
+      <div class="screen-header-flex">
+        <div>
+          <h2 class="screen-heading">Planar Leyline Beacon</h2>
+          <p class="screen-sub">Broadcast local BLE & mDNS table session to tabletop peers.</p>
+        </div>
+      </div>
+
+      <div class="beacon-card">
+        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+        <div class="card-corner bl"></div><div class="card-corner br"></div>
+
+        <div class="leyline-circle">
+          <div class="leyline-pulse"></div>
+          <div class="leyline-ring"></div>
+          <div class="leyline-core">📡</div>
+        </div>
+
+        <div class="beacon-status-title" id="beaconStatusText">Beacon Inactive</div>
+        <div class="beacon-status-desc" id="beaconSubtext">Tap below to host your local campaign table.</div>
+
+        <button class="beacon-btn btn-gilded" id="toggleBeaconBtn">Awaken Table Beacon</button>
+      </div>
+
+      <div class="beacon-footer-note">
+        Broadcasting on <span class="mono-code">_kryptotome-table._tcp</span><br>
+        Zero Internet required for local table session proof mounting.
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom Navigation Bar (Adventurer's Relic Belt) -->
+  <nav class="mobile-nav">
+    <button class="nav-item active" data-screen="vault">
+      <span class="nav-icon">🛡️</span>
+      <span>Vault</span>
+    </button>
+    <button class="nav-item" data-screen="scanner">
+      <span class="nav-icon">🔮</span>
+      <span>Scry</span>
+    </button>
+    <button class="nav-item" data-screen="beacon">
+      <span class="nav-icon">📡</span>
+      <span>Beacon</span>
+    </button>
+  </nav>
+
+  <!-- In-App Toast Container -->
+  <div id="pocket-toast-container" class="toast-container"></div>
+
+  <script src="dist/bundle.js"></script>
+</body>
+</html>

@@ -203,6 +203,30 @@ enum Commands {
         #[arg(short, long, default_value = ".kryptotome-vault.json")]
         vault_path: PathBuf,
     },
+
+    /// Launch an air-gapped table beacon for zero-Internet convention or tabletop play
+    TableBeacon {
+        #[arg(short, long, default_value = "session-table-99")]
+        session_id: String,
+
+        #[arg(short, long, default_value = "Friday Night Table")]
+        table_name: String,
+
+        #[arg(short, long, default_value = "127.0.0.1:8443")]
+        bind: String,
+
+        #[arg(short, long, default_value = "paizo/player-core")]
+        packages: Vec<String>,
+    },
+
+    /// Verify an organized play tournament check-in ticket in < 10ms with zero PII
+    TournamentCheckIn {
+        #[arg(short, long, help = "Raw ticket QR code string (KRYP:TOURNEY:...)")]
+        qr_string: Option<String>,
+
+        #[arg(short, long, help = "Path to ticket JSON file")]
+        file: Option<PathBuf>,
+    },
 }
 
 #[tokio::main]
@@ -556,6 +580,53 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("No vault found at {:?}", vault_path);
             }
+        }
+
+        Commands::TableBeacon {
+            session_id,
+            table_name,
+            bind,
+            packages,
+        } => {
+            let config = kryptotome_cli::table_beacon::TableBeaconConfig {
+                session_id,
+                table_name,
+                bind_address: bind,
+                advertised_service: "_kryptotome-table._tcp".to_string(),
+                campaign_package_ids: packages,
+            };
+            let beacon = kryptotome_cli::table_beacon::AirGappedTableBeaconDaemon::new(config);
+            let state = beacon.start();
+            println!("==================================================");
+            println!("  Kryptotome Air-Gapped Table Beacon Active");
+            println!("==================================================");
+            println!("Session ID: {}", state.session_id);
+            println!("Table Name: {}", state.table_name);
+            println!("Bind Address: {}", state.bind_address);
+            println!("mDNS Service: {}", state.advertised_service);
+            println!("Zero Internet Required. Standing by for peer handshakes...");
+        }
+
+        Commands::TournamentCheckIn { qr_string, file } => {
+            let ticket = if let Some(ref qr) = qr_string {
+                kryptotome_cli::tournament::TournamentCheckInTicket::from_qr_string(qr)?
+            } else if let Some(ref path) = file {
+                let json = std::fs::read_to_string(path)?;
+                serde_json::from_str(&json)?
+            } else {
+                return Err("Must provide either --qr-string or --file".into());
+            };
+
+            let result = kryptotome_cli::tournament::TournamentScanner::verify_ticket(&ticket)?;
+            println!("==================================================");
+            println!("  Tournament Check-In Verification: SUCCESS");
+            println!("==================================================");
+            println!("Tournament ID: {}", result.tournament_id);
+            println!("Character Name: {}", result.character_name);
+            println!("Verified Feats: {}", result.verified_feats_count);
+            println!("Verification Latency: {:.3}ms (Target: < 10ms)", result.latency_ms);
+            println!("PII Protected: {}", !result.contains_pii);
+            println!("Verified At: {}", result.verified_at);
         }
     }
 

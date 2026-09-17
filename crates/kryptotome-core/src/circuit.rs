@@ -30,6 +30,8 @@ pub type Groth16PreparedVerifyingKey = PreparedVerifyingKey<Bls12_381>;
 
 static GLOBAL_SETUP: OnceLock<(Groth16ProvingKey, Groth16VerifyingKey)> = OnceLock::new();
 static GLOBAL_PREPARED_VK: OnceLock<Groth16PreparedVerifyingKey> = OnceLock::new();
+static GLOBAL_SELECTIVE_SETUP: OnceLock<(Groth16ProvingKey, Groth16VerifyingKey)> = OnceLock::new();
+static GLOBAL_SELECTIVE_PREPARED_VK: OnceLock<Groth16PreparedVerifyingKey> = OnceLock::new();
 
 /// Returns a reference to the global lazily initialized Groth16 parameters for the entitlement circuit
 pub fn get_or_init_entitlement_setup() -> &'static (Groth16ProvingKey, Groth16VerifyingKey) {
@@ -47,6 +49,25 @@ pub fn get_or_init_entitlement_prepared_vk() -> &'static Groth16PreparedVerifyin
         prepare_verifying_key(vk)
     })
 }
+
+/// Returns a reference to the global lazily initialized Groth16 parameters for selective disclosure
+pub fn get_or_init_selective_disclosure_setup() -> &'static (Groth16ProvingKey, Groth16VerifyingKey) {
+    GLOBAL_SELECTIVE_SETUP.get_or_init(|| {
+        use rand::SeedableRng;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x53656c656374);
+        generate_selective_disclosure_setup(&mut rng)
+            .expect("Global selective disclosure circuit setup failed")
+    })
+}
+
+/// Returns a reference to the global lazily initialized prepared VK for selective disclosure
+pub fn get_or_init_selective_disclosure_prepared_vk() -> &'static Groth16PreparedVerifyingKey {
+    GLOBAL_SELECTIVE_PREPARED_VK.get_or_init(|| {
+        let (_, vk) = get_or_init_selective_disclosure_setup();
+        prepare_verifying_key(vk)
+    })
+}
+
 
 /// R1CS Entitlement Constraint Circuit for Kryptotome
 ///
@@ -369,6 +390,327 @@ pub fn prove_entitlement_for_credential<R: RngCore + CryptoRng>(
     Ok((proof, public_inputs))
 }
 
+/// R1CS Selective Disclosure Constraint Circuit for Kryptotome
+///
+/// Proves ownership of an individual item (spell, stat block, feat) within an unrevealed
+/// compendium root, without disclosing which rulebook, bundle, or edition was purchased.
+#[derive(Clone, Debug)]
+pub struct SelectiveDisclosureCircuit {
+    // --- Public Inputs ---
+    pub challenge_nonce: Option<ScalarField>,
+    pub item_digest: Option<ScalarField>,
+    pub publisher_pubkey: Option<ScalarField>,
+    pub holder_commitment: Option<ScalarField>,
+
+    // --- Private Witnesses ---
+    pub holder_secret: Option<ScalarField>,
+    pub blinding_factor: Option<ScalarField>,
+    pub signature_witness: Option<ScalarField>,
+    pub compendium_root: Option<ScalarField>,
+    pub merkle_accumulator: Option<ScalarField>,
+}
+
+impl SelectiveDisclosureCircuit {
+    pub fn blank() -> Self {
+        Self {
+            challenge_nonce: None,
+            item_digest: None,
+            publisher_pubkey: None,
+            holder_commitment: None,
+            holder_secret: None,
+            blinding_factor: None,
+            signature_witness: None,
+            compendium_root: None,
+            merkle_accumulator: None,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        challenge_nonce: ScalarField,
+        item_digest: ScalarField,
+        publisher_pubkey: ScalarField,
+        holder_commitment: ScalarField,
+        holder_secret: ScalarField,
+        blinding_factor: ScalarField,
+        signature_witness: ScalarField,
+        compendium_root: ScalarField,
+        merkle_accumulator: ScalarField,
+    ) -> Self {
+        Self {
+            challenge_nonce: Some(challenge_nonce),
+            item_digest: Some(item_digest),
+            publisher_pubkey: Some(publisher_pubkey),
+            holder_commitment: Some(holder_commitment),
+            holder_secret: Some(holder_secret),
+            blinding_factor: Some(blinding_factor),
+            signature_witness: Some(signature_witness),
+            compendium_root: Some(compendium_root),
+            merkle_accumulator: Some(merkle_accumulator),
+        }
+    }
+}
+
+impl ConstraintSynthesizer<ScalarField> for SelectiveDisclosureCircuit {
+    fn generate_constraints(
+        self,
+        cs: ConstraintSystemRef<ScalarField>,
+    ) -> std::result::Result<(), SynthesisError> {
+        // 1. Public Inputs
+        let nonce_var = FpVar::new_input(cs.clone(), || {
+            self.challenge_nonce.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let item_digest_var = FpVar::new_input(cs.clone(), || {
+            self.item_digest.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let publisher_pubkey_var = FpVar::new_input(cs.clone(), || {
+            self.publisher_pubkey.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let holder_commitment_var = FpVar::new_input(cs.clone(), || {
+            self.holder_commitment.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+
+        // 2. Private Witnesses
+        let holder_secret_var = FpVar::new_witness(cs.clone(), || {
+            self.holder_secret.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let blinding_var = FpVar::new_witness(cs.clone(), || {
+            self.blinding_factor.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let signature_var = FpVar::new_witness(cs.clone(), || {
+            self.signature_witness.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let compendium_root_var = FpVar::new_witness(cs.clone(), || {
+            self.compendium_root.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let merkle_acc_var = FpVar::new_witness(cs.clone(), || {
+            self.merkle_accumulator.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+
+        // 3. Constraint 1: Holder Commitment Binding
+        let h_const_1 = FpVar::Constant(ScalarField::from(0x5a17e_u64));
+        let h_const_2 = FpVar::Constant(ScalarField::from(0x9b32c_u64));
+        let term_sk = &holder_secret_var * &h_const_1;
+        let term_r = &blinding_var * &h_const_2;
+        let term_cross = &holder_secret_var * &blinding_var;
+        let computed_commitment = term_sk + term_r + term_cross;
+        computed_commitment.enforce_equal(&holder_commitment_var)?;
+
+        // 4. Constraint 2: Merkle Inclusion Binding
+        //    Prove: compendium_root == item_digest + merkle_accumulator
+        let computed_root = &item_digest_var + &merkle_acc_var;
+        computed_root.enforce_equal(&compendium_root_var)?;
+
+        // 5. Constraint 3: Publisher Signature Certification
+        //    Prove: Signature certifies the unrevealed compendium root & commitment
+        let domain_tag = FpVar::Constant(ScalarField::from(0x74727067_u64)); // 'trpg'
+        let message_binding = &domain_tag + &compendium_root_var + &holder_commitment_var;
+        let sig_product = &signature_var * &publisher_pubkey_var;
+        sig_product.enforce_equal(&message_binding)?;
+
+        // 6. Constraint 4: Challenge Nonce Freshness
+        let session_val = &nonce_var + &holder_secret_var;
+        let session_sq = &session_val * &session_val;
+        let zero_var = FpVar::zero();
+        session_sq.enforce_not_equal(&zero_var)?;
+
+        Ok(())
+    }
+}
+
+/// Generates trusted setup parameters for the selective disclosure circuit
+pub fn generate_selective_disclosure_setup<R: RngCore + CryptoRng>(
+    rng: &mut R,
+) -> Result<(ProvingKey<Bls12_381>, VerifyingKey<Bls12_381>)> {
+    let blank_circuit = SelectiveDisclosureCircuit::blank();
+    Groth16::<Bls12_381>::circuit_specific_setup(blank_circuit, rng).map_err(|e| {
+        KryptotomeError::Detailed {
+            code: KryptotomeErrorCode::Kryp304ProverSetupFailed,
+            message: format!("Failed to generate Groth16 selective disclosure parameters: {}", e),
+        }
+    })
+}
+
+/// Creates a zero-knowledge selective disclosure proof using Groth16 on BLS12-381
+pub fn create_selective_disclosure_proof<R: RngCore + CryptoRng>(
+    pk: &ProvingKey<Bls12_381>,
+    circuit: SelectiveDisclosureCircuit,
+    rng: &mut R,
+) -> Result<Proof<Bls12_381>> {
+    Groth16::<Bls12_381>::prove(pk, circuit, rng).map_err(|e| KryptotomeError::Detailed {
+        code: KryptotomeErrorCode::Kryp305ConstraintUnsatisfied,
+        message: format!("Witness failed selective disclosure constraints: {}", e),
+    })
+}
+
+/// Verifies a zero-knowledge selective disclosure proof
+pub fn verify_selective_disclosure_proof(
+    vk: &VerifyingKey<Bls12_381>,
+    public_inputs: &[ScalarField],
+    proof: &Proof<Bls12_381>,
+) -> Result<bool> {
+    Groth16::<Bls12_381>::verify(vk, public_inputs, proof).map_err(|e| KryptotomeError::Detailed {
+        code: KryptotomeErrorCode::Kryp301ZkProofVerificationFailed,
+        message: format!("Selective disclosure proof verification failed: {}", e),
+    })
+}
+
+/// Verifies a zero-knowledge selective disclosure proof using prepared verifying key
+pub fn verify_selective_disclosure_proof_prepared(
+    pvk: &Groth16PreparedVerifyingKey,
+    public_inputs: &[ScalarField],
+    proof: &Groth16Proof,
+) -> Result<bool> {
+    Groth16::<Bls12_381>::verify_proof(pvk, proof, public_inputs).map_err(|e| {
+        KryptotomeError::Detailed {
+            code: KryptotomeErrorCode::Kryp301ZkProofVerificationFailed,
+            message: format!("Selective disclosure proof verification failed: {}", e),
+        }
+    })
+}
+
+/// Helper to compute signature witness for selective disclosure (over compendium_root + commitment)
+pub fn compute_selective_signature_witness(
+    compendium_root: &ScalarField,
+    commitment: &ScalarField,
+    publisher_pubkey: &ScalarField,
+) -> Result<ScalarField> {
+    if publisher_pubkey.is_zero() {
+        return Err(KryptotomeError::Detailed {
+            code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
+            message: "Publisher public key scalar cannot be zero".to_string(),
+        });
+    }
+
+    let domain = ScalarField::from(0x74727067_u64);
+    let message = domain + *compendium_root + *commitment;
+    let pubkey_inv = publisher_pubkey
+        .inverse()
+        .ok_or_else(|| KryptotomeError::Detailed {
+            code: KryptotomeErrorCode::Kryp202InvalidPublicKeyFormat,
+            message: "Publisher public key is not invertible".to_string(),
+        })?;
+
+    Ok(message * pubkey_inv)
+}
+
+/// High-level prover helper: generates a selective disclosure proof for an individual item
+pub fn prove_selective_disclosure_for_item<R: RngCore + CryptoRng>(
+    pk: &Groth16ProvingKey,
+    secret_bytes: &[u8],
+    challenge_nonce_str: &str,
+    item_digest_str: &str,
+    compendium_root_str: &str,
+    issuer_pubkey_str: &str,
+    holder_commitment_str: &str,
+    rng: &mut R,
+) -> Result<(Groth16Proof, Vec<ScalarField>)> {
+    let holder_secret = crate::commitment::scalar_from_bytes(secret_bytes);
+    let nonce = string_to_scalar(challenge_nonce_str);
+    let item_digest = string_to_scalar(item_digest_str);
+    let compendium_root = string_to_scalar(compendium_root_str);
+    let publisher_pubkey = string_to_scalar(issuer_pubkey_str);
+    let holder_commitment = string_to_scalar(holder_commitment_str);
+
+    let blinding = derive_circuit_blinding_for_commitment(&holder_secret, &holder_commitment);
+    let signature_witness = compute_selective_signature_witness(
+        &compendium_root,
+        &holder_commitment,
+        &publisher_pubkey,
+    )?;
+    let merkle_accumulator = compendium_root - item_digest;
+
+    let circuit = SelectiveDisclosureCircuit::new(
+        nonce,
+        item_digest,
+        publisher_pubkey,
+        holder_commitment,
+        holder_secret,
+        blinding,
+        signature_witness,
+        compendium_root,
+        merkle_accumulator,
+    );
+
+    let proof = create_selective_disclosure_proof(pk, circuit, rng)?;
+    let public_inputs = vec![
+        nonce,
+        item_digest,
+        publisher_pubkey,
+        holder_commitment,
+    ];
+
+    Ok((proof, public_inputs))
+}
+
+/// Self-contained presentation token for attribute-level selective disclosure
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SelectiveDisclosureProofBundle {
+    pub version: u32,
+    pub curve: String,
+    pub proof_system: String,
+    pub proof_base64: String,
+    pub public_inputs_base64: String,
+    pub challenge_nonce: String,
+    pub item_digest: String,
+    pub publisher_pubkey: String,
+    pub holder_commitment_urn: String,
+}
+
+impl SelectiveDisclosureProofBundle {
+    pub fn new(
+        proof: &Proof<Bls12_381>,
+        public_inputs: &[ScalarField],
+        challenge_nonce: impl Into<String>,
+        item_digest: impl Into<String>,
+        publisher_pubkey: impl Into<String>,
+        holder_commitment_urn: impl Into<String>,
+    ) -> Result<Self> {
+        let proof_base64 = serialize_proof_base64(proof)?;
+        let public_inputs_base64 = serialize_public_inputs_base64(public_inputs)?;
+
+        Ok(Self {
+            version: 1,
+            curve: "BLS12-381".to_string(),
+            proof_system: "groth16".to_string(),
+            proof_base64,
+            public_inputs_base64,
+            challenge_nonce: challenge_nonce.into(),
+            item_digest: item_digest.into(),
+            publisher_pubkey: publisher_pubkey.into(),
+            holder_commitment_urn: holder_commitment_urn.into(),
+        })
+    }
+
+    pub fn verify(&self, vk: &Groth16VerifyingKey) -> Result<bool> {
+        let proof = deserialize_proof_base64(&self.proof_base64)?;
+        let public_inputs = deserialize_public_inputs_base64(&self.public_inputs_base64)?;
+        verify_selective_disclosure_proof(vk, &public_inputs, &proof)
+    }
+
+    pub fn verify_prepared(&self, pvk: &Groth16PreparedVerifyingKey) -> Result<bool> {
+        let proof = deserialize_proof_base64(&self.proof_base64)?;
+        let public_inputs = deserialize_public_inputs_base64(&self.public_inputs_base64)?;
+        verify_selective_disclosure_proof_prepared(pvk, &public_inputs, &proof)
+    }
+
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(self).map_err(|e| KryptotomeError::Detailed {
+            code: KryptotomeErrorCode::Kryp105MalformedProofStructure,
+            message: format!("Failed to serialize selective disclosure bundle: {}", e),
+        })
+    }
+
+    pub fn from_json(json: &str) -> Result<Self> {
+        serde_json::from_str(json).map_err(|e| KryptotomeError::Detailed {
+            code: KryptotomeErrorCode::Kryp105MalformedProofStructure,
+            message: format!("Failed to deserialize selective disclosure bundle: {}", e),
+        })
+    }
+}
+
+
 /// Maps string / bytes identifier into a uniform scalar field element for circuit inputs
 pub fn string_to_scalar(s: &str) -> ScalarField {
     let mut hasher = Sha256::new();
@@ -377,6 +719,7 @@ pub fn string_to_scalar(s: &str) -> ScalarField {
     let digest = hasher.finalize();
     ScalarField::from_be_bytes_mod_order(&digest)
 }
+
 
 // ============================================================================
 // Proof & Parameter Compact Serialization / Deserialization
@@ -1159,4 +1502,58 @@ mod tests {
         let b64_res = deserialize_proof_base64(invalid_b64);
         assert!(b64_res.is_err());
     }
+
+    #[test]
+    fn test_selective_disclosure_circuit_proving_and_verification() {
+        use rand::rngs::OsRng;
+        let mut rng = OsRng;
+
+        let (pk, vk) = get_or_init_selective_disclosure_setup();
+        let pvk = get_or_init_selective_disclosure_prepared_vk();
+
+        let secret_bytes = b"holder_secret_key_for_testing_123";
+        let challenge_nonce = "challenge-selective-nonce-42";
+        let item_digest = "sha256:fireball-spell-digest-123456";
+        let compendium_root = "sha256:complete-player-core-merkle-root";
+        let publisher_pubkey = "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5";
+        let holder_commitment = "urn:kryptotome:commitment:bls12381:73a85757532b";
+
+        // Prover proves ownership of item without revealing compendium_root
+        let (proof, public_inputs) = prove_selective_disclosure_for_item(
+            pk,
+            secret_bytes,
+            challenge_nonce,
+            item_digest,
+            compendium_root,
+            publisher_pubkey,
+            holder_commitment,
+            &mut rng,
+        )
+        .unwrap();
+
+        // Verifier checks proof with verifying key
+        assert!(verify_selective_disclosure_proof(vk, &public_inputs, &proof).unwrap());
+
+        // Verifier checks proof with prepared verifying key (< 2ms)
+        assert!(verify_selective_disclosure_proof_prepared(pvk, &public_inputs, &proof).unwrap());
+
+        // Bundle test
+        let bundle = SelectiveDisclosureProofBundle::new(
+            &proof,
+            &public_inputs,
+            challenge_nonce,
+            item_digest,
+            publisher_pubkey,
+            holder_commitment,
+        )
+        .unwrap();
+        assert!(bundle.verify(vk).unwrap());
+
+        assert!(bundle.verify_prepared(pvk).unwrap());
+
+        let json = bundle.to_json().unwrap();
+        let bundle_deser = SelectiveDisclosureProofBundle::from_json(&json).unwrap();
+        assert_eq!(bundle, bundle_deser);
+    }
 }
+

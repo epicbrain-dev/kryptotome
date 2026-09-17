@@ -1,0 +1,16 @@
+{
+  "name": "Kryptotome Tabletop Vault",
+  "version": "1.1.0",
+  "manifest_version": 1,
+  "target": "2.0",
+  "author": "Kryptotome Contributors",
+  "description": "Zero-knowledge digital rulebook and asset synchronizer for Owlbear Rodeo 2.0. Mount unlocked tokens, battlemaps, and spell cards directly to the room canvas.",
+  "icon": "icon.svg",
+  "action": {
+    "title": "Kryptotome Vault",
+    "icon": "icon.svg",
+    "popover": "index.html",
+    "width": 420,
+    "height": 640
+  }
+}

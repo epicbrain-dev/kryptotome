@@ -9,21 +9,28 @@ pub mod credential;
 pub mod curve;
 pub mod digest;
 pub mod error;
+pub mod merkle;
+pub mod party;
+pub mod passkey;
 pub mod zkp;
 
 pub use circuit::{
-    compute_circuit_commitment, compute_circuit_signature_witness, create_entitlement_proof,
+    compute_circuit_commitment, compute_circuit_signature_witness, compute_selective_signature_witness,
+    create_entitlement_proof, create_selective_disclosure_proof,
     derive_circuit_blinding_for_commitment, deserialize_pk_compressed, deserialize_proof_base64,
     deserialize_proof_base64_url, deserialize_proof_compressed, deserialize_public_inputs_base64,
     deserialize_public_inputs_compressed, deserialize_vk_base64, deserialize_vk_compressed,
-    generate_entitlement_setup, get_or_init_entitlement_prepared_vk, get_or_init_entitlement_setup,
-    prepare_verifying_key, proof_from_urn, proof_to_urn, prove_entitlement_for_credential,
-    serialize_pk_compressed, serialize_proof_base64, serialize_proof_base64_url,
-    serialize_proof_compressed, serialize_public_inputs_base64, serialize_public_inputs_compressed,
-    serialize_vk_base64, serialize_vk_compressed, string_to_scalar, verify_entitlement_proof,
-    verify_entitlement_proof_prepared, EntitlementCircuit, EntitlementProofBundle,
+    generate_entitlement_setup, generate_selective_disclosure_setup, get_or_init_entitlement_prepared_vk,
+    get_or_init_entitlement_setup, get_or_init_selective_disclosure_prepared_vk,
+    get_or_init_selective_disclosure_setup, prepare_verifying_key, proof_from_urn, proof_to_urn,
+    prove_entitlement_for_credential, prove_selective_disclosure_for_item, serialize_pk_compressed,
+    serialize_proof_base64, serialize_proof_base64_url, serialize_proof_compressed,
+    serialize_public_inputs_base64, serialize_public_inputs_compressed, serialize_vk_base64,
+    serialize_vk_compressed, string_to_scalar, verify_entitlement_proof,
+    verify_entitlement_proof_prepared, verify_selective_disclosure_proof,
+    verify_selective_disclosure_proof_prepared, EntitlementCircuit, EntitlementProofBundle,
     Groth16PreparedVerifyingKey, Groth16Proof, Groth16ProvingKey, Groth16VerifyingKey,
-    BUNDLE_MAGIC,
+    SelectiveDisclosureCircuit, SelectiveDisclosureProofBundle, BUNDLE_MAGIC,
 };
 
 pub use commitment::{scalar_from_bytes, PedersenCommitment, PedersenCommitmentScheme};
@@ -44,4 +51,11 @@ pub use digest::{
     compute_file_digest_with_progress, ContentDigest, DigestAlgorithm,
 };
 pub use error::{KryptotomeError, Result};
+pub use merkle::{CompendiumItem, CompendiumMerkleTree, MerkleInclusionProof, MerklePathNode};
+pub use party::{AggregatedPartySessionProof, PartyMemberContribution, PartySessionPool};
+pub use passkey::{
+    CollectedClientData, PasskeyAssertion, PasskeyBinding, PasskeyHardwareManager,
+    PasskeyVerificationResult, WEBAUTHN_FLAG_USER_PRESENT, WEBAUTHN_FLAG_USER_VERIFIED,
+};
 pub use zkp::{ChallengeNonce, ProofInputs, VerificationKey, ZkProof};
+

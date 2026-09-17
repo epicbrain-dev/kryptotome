@@ -1,6 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use kryptotome_core::error::{KryptotomeError, KryptotomeErrorCode};
+use kryptotome_core::party::{AggregatedPartySessionProof, PartyMemberContribution, PartySessionPool};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -412,6 +413,7 @@ pub struct SessionManager {
     active_attestations: HashMap<String, SessionAttestation>,
     consumed_request_nonces: HashMap<String, DateTime<Utc>>,
     consumed_renewal_nonces: HashMap<String, DateTime<Utc>>,
+    party_pool: Option<PartySessionPool>,
 }
 
 impl SessionManager {
@@ -429,6 +431,7 @@ impl SessionManager {
             active_attestations: HashMap::new(),
             consumed_request_nonces: HashMap::new(),
             consumed_renewal_nonces: HashMap::new(),
+            party_pool: None,
         }
     }
 
@@ -443,6 +446,7 @@ impl SessionManager {
             active_attestations: HashMap::new(),
             consumed_request_nonces: HashMap::new(),
             consumed_renewal_nonces: HashMap::new(),
+            party_pool: None,
         }
     }
 
@@ -460,6 +464,56 @@ impl SessionManager {
 
     pub fn set_scope_policy(&mut self, policy: ScopePolicy) {
         self.scope_policy = policy;
+    }
+
+    /// Initializes a collaborative party pool for multi-holder rulebook aggregation
+    pub fn init_party_pool(&mut self, table_nonce: impl Into<String>) {
+        self.party_pool = Some(PartySessionPool::new(
+            self.session_id.clone(),
+            self.host_public_key_hex(),
+            table_nonce,
+        ));
+    }
+
+    /// Returns a reference to the active party session pool if initialized
+    pub fn party_pool(&self) -> Option<&PartySessionPool> {
+        self.party_pool.as_ref()
+    }
+
+    /// Returns a mutable reference to the active party session pool if initialized
+    pub fn party_pool_mut(&mut self) -> Option<&mut PartySessionPool> {
+        self.party_pool.as_mut()
+    }
+
+    /// Registers a player's contributed rulebook into the party pool
+    pub fn register_party_contribution(
+        &mut self,
+        contribution: PartyMemberContribution,
+    ) -> Result<(), KryptotomeError> {
+        match self.party_pool.as_mut() {
+            Some(pool) => pool.register_contribution(contribution),
+            None => Err(KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp703PeerUnauthorized,
+                message: "Party pool has not been initialized for this session".to_string(),
+            }),
+        }
+    }
+
+    /// Finalizes the collective party pool into an AggregatedPartySessionProof signed by the GM/Host
+    pub fn finalize_party_session(
+        &self,
+        duration_minutes: Option<i64>,
+    ) -> Result<AggregatedPartySessionProof, KryptotomeError> {
+        match self.party_pool.as_ref() {
+            Some(pool) => Ok(pool.issue_aggregated_proof(
+                &self.host_signing_key,
+                duration_minutes.unwrap_or(DEFAULT_SESSION_DURATION_MINUTES),
+            )),
+            None => Err(KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp703PeerUnauthorized,
+                message: "Party pool has not been initialized for this session".to_string(),
+            }),
+        }
     }
 
     /// Checks if a peer (or all peers) has been revoked for this session
@@ -940,6 +994,48 @@ impl PeerSessionClient {
         self.pending_requests.remove(package_id);
 
         Ok(mounted)
+    }
+
+    /// Step 4 (Party): Mounts all rulebooks from a verified aggregated party session proof into client memory
+    pub fn mount_party_session(
+        &mut self,
+        proof: &AggregatedPartySessionProof,
+        expected_host_pubkey_hex: Option<&str>,
+    ) -> Result<Vec<MountedCompendiumSession>, KryptotomeError> {
+        let is_valid = proof.verify(expected_host_pubkey_hex)?;
+        if !is_valid {
+            return Err(KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp201SignatureVerificationFailed,
+                message: "Aggregated party session proof signature verification failed or token expired".to_string(),
+            });
+        }
+
+        let issued_at = DateTime::parse_from_rfc3339(&proof.issued_at)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now());
+        let expires_at = DateTime::parse_from_rfc3339(&proof.valid_until)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now() + Duration::minutes(DEFAULT_SESSION_DURATION_MINUTES));
+
+        let mut mounted_list = Vec::new();
+        for package_id in &proof.pooled_packages {
+            let mounted = MountedCompendiumSession {
+                package_id: package_id.clone(),
+                content_digest: proof.pool_digest.clone(),
+                host_peer_id: proof.host_public_key_hex.clone(),
+                recipient_peer_id: self.peer_id.clone(),
+                session_id: proof.session_id.clone(),
+                permitted_scopes: vec!["*".to_string()],
+                issued_at,
+                expires_at,
+                mounted_at: Utc::now(),
+            };
+            self.last_signatures.insert(package_id.clone(), proof.host_signature_hex.clone());
+            self.mounted_sessions.insert(package_id.clone(), mounted.clone());
+            mounted_list.push(mounted);
+        }
+
+        Ok(mounted_list)
     }
 
     /// Creates a renewal request for an actively mounted compendium session
@@ -1584,5 +1680,53 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn test_party_session_pool_lifecycle() {
+        let mut session_mgr = SessionManager::new("session-party-123".to_string());
+        session_mgr.init_party_pool("table-nonce-abc");
+
+        // Player 1 contributes Player Core
+        let p1_key = SigningKey::generate(&mut OsRng);
+        let c1 = PartyMemberContribution::new_signed(
+            "peer-alice",
+            "paizo/pathfinder-player-core",
+            "b3:pcore_digest",
+            "table-nonce-abc",
+            &p1_key,
+        );
+        session_mgr.register_party_contribution(c1).unwrap();
+
+        // Player 2 contributes Monster Core
+        let p2_key = SigningKey::generate(&mut OsRng);
+        let c2 = PartyMemberContribution::new_signed(
+            "peer-bob",
+            "paizo/pathfinder-monster-core",
+            "b3:mcore_digest",
+            "table-nonce-abc",
+            &p2_key,
+        );
+        session_mgr.register_party_contribution(c2).unwrap();
+
+        assert_eq!(session_mgr.party_pool().unwrap().contribution_count(), 2);
+        assert!(session_mgr.party_pool().unwrap().is_package_available("paizo/pathfinder-player-core"));
+        assert!(session_mgr.party_pool().unwrap().is_package_available("paizo/pathfinder-monster-core"));
+
+        // Host finalizes session
+        let party_proof = session_mgr.finalize_party_session(Some(120)).unwrap();
+        assert_eq!(party_proof.pooled_packages.len(), 2);
+
+        // Player 3 (Charlie) joins table and mounts pooled modules
+        let mut charlie_client = PeerSessionClient::new("peer-charlie");
+        let mounted = charlie_client
+            .mount_party_session(&party_proof, Some(&session_mgr.host_public_key_hex()))
+            .unwrap();
+
+        assert_eq!(mounted.len(), 2);
+        assert!(charlie_client.is_package_mounted("paizo/pathfinder-player-core"));
+        assert!(charlie_client.is_package_mounted("paizo/pathfinder-monster-core"));
+        assert!(charlie_client.get_mounted_session("paizo/pathfinder-player-core").unwrap().is_valid());
+        assert!(charlie_client.get_mounted_session("paizo/pathfinder-player-core").unwrap().has_scope("spells"));
     }
 }

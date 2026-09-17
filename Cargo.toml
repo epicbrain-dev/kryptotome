@@ -6,7 +6,10 @@ members = [
     "crates/kryptotome-verifier",
     "crates/kryptotome-wasm",
     "crates/kryptotome-cli",
+    "apps/pocket-vault/src-tauri",
+    "apps/publisher-studio/src-tauri",
 ]
+
 exclude = ["fuzz"]
 
 [workspace.package]
@@ -46,6 +49,7 @@ criterion = { version = "0.5", default-features = false }
 kryptotome-core = { path = "crates/kryptotome-core" }
 kryptotome-vault = { path = "crates/kryptotome-vault" }
 kryptotome-verifier = { path = "crates/kryptotome-verifier" }
+kryptotome-cli = { path = "crates/kryptotome-cli" }
 
 [profile.release]
 opt-level = 3

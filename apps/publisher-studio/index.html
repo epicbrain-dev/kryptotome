@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kryptotome Publisher Studio | Arcane Grimoire Packaging & Fulfillment</title>
+  <meta name="description" content="Enterprise desktop packaging studio for tabletop game publishers, indie creators, and digital fulfillment." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700;800;900&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="src/styles.css" />
+</head>
+<body class="grimoire-body">
+  <div class="app-shell">
+    <!-- Arcane Sidebar Navigation (Grimoire Bookmarks) -->
+    <aside class="grimoire-sidebar">
+      <div class="sidebar-header">
+        <div class="grimoire-crest">
+          <div class="crest-sigil">⚜</div>
+          <div class="crest-meta">
+            <h1 class="crest-title">Kryptotome</h1>
+            <span class="crest-subtitle">Publisher Studio</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="grimoire-nav" role="tablist">
+        <button class="nav-bookmark active" id="tab-btn-package" role="tab" aria-selected="true" data-tab="package">
+          <span class="bookmark-glyph">📜</span>
+          <div class="bookmark-info">
+            <span class="bookmark-title">Tome Packaging</span>
+            <span class="bookmark-desc">BLAKE3 & Schema Guard</span>
+          </div>
+          <span class="ribbon-tail"></span>
+        </button>
+        <button class="nav-bookmark" id="tab-btn-signing" role="tab" aria-selected="false" data-tab="signing">
+          <span class="bookmark-glyph">🖋️</span>
+          <div class="bookmark-info">
+            <span class="bookmark-title">Cryptographic Seal</span>
+            <span class="bookmark-desc">Ed25519 Hardware Key</span>
+          </div>
+          <span class="ribbon-tail"></span>
+        </button>
+        <button class="nav-bookmark" id="tab-btn-crowdfunding" role="tab" aria-selected="false" data-tab="crowdfunding">
+          <span class="bookmark-glyph">⚔️</span>
+          <div class="bookmark-info">
+            <span class="bookmark-title">Backer Fulfillment</span>
+            <span class="bookmark-desc">Kickstarter & BackerKit</span>
+          </div>
+          <span class="ribbon-tail"></span>
+        </button>
+        <button class="nav-bookmark" id="tab-btn-vouchers" role="tab" aria-selected="false" data-tab="vouchers">
+          <span class="bookmark-glyph">🏷️</span>
+          <div class="bookmark-info">
+            <span class="bookmark-title">Physical Vouchers</span>
+            <span class="bookmark-desc">Scratch & NFC Book Tags</span>
+          </div>
+          <span class="ribbon-tail"></span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="enterprise-key-badge">
+          <div class="rune-indicator pulse-glow"></div>
+          <span class="key-status-text">Hardware Enclave: Active</span>
+        </div>
+        <button id="btn-toggle-chronicle" class="btn-chronicle">
+          <span class="chronicle-icon">📜</span> Arcane Audit Chronicle
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Grimoire Workspace -->
+    <main class="main-grimoire">
+      <!-- Ornate Topbar -->
+      <header class="grimoire-topbar">
+        <div class="topbar-title-wrap">
+          <div class="ornament-filigree">❖ ✦ ❖</div>
+          <h2 id="view-title" class="view-title">Digital Tome Studio & Schema Validation</h2>
+          <span id="view-desc" class="view-desc">Assemble rulebook chapters, PDFs, compendiums, and validate Paizo ORC / CC-BY schemas.</span>
+        </div>
+        <div class="topbar-actions">
+          <button id="btn-quick-sample" class="btn-arcane-ghost">Load Demo Grimoire</button>
+          <button id="btn-export-bundle" class="btn-gilded-primary">Export .kryptopkg</button>
+        </div>
+      </header>
+
+      <!-- View Containers -->
+      <div class="tab-views">
+        <!-- 1. Package Studio -->
+        <section id="view-package" class="tab-view active">
+          <div class="view-grid">
+            <div class="arcane-card card-metadata">
+              <div class="card-corner tl"></div><div class="card-corner tr"></div>
+              <div class="card-corner bl"></div><div class="card-corner br"></div>
+              
+              <div class="card-header-bar">
+                <h3 class="card-title">Manifest Metadata & Schema</h3>
+                <span class="card-badge">Paizo ORC Ready</span>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="pkg-id">Package Identifier</label>
+                  <input type="text" id="pkg-id" class="arcane-input" placeholder="pkg-eldritch-vault-5e" value="pkg-eldritch-vault-5e" />
+                </div>
+                <div class="form-group">
+                  <label for="pkg-version">Tome Version</label>
+                  <input type="text" id="pkg-version" class="arcane-input" placeholder="1.0.0" value="1.0.0" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="pkg-title">Rulebook / Supplement Title</label>
+                  <input type="text" id="pkg-title" class="arcane-input" placeholder="The Eldritch Vault Compendium" value="The Eldritch Vault Compendium" />
+                </div>
+                <div class="form-group">
+                  <label for="pkg-system">Game System</label>
+                  <select id="pkg-system" class="arcane-select">
+                    <option value="5e">D&D 5th Edition (SRD 5.1)</option>
+                    <option value="pf2e" selected>Pathfinder 2e (ORC License)</option>
+                    <option value="cairn">Cairn / Into the Odd (CC-BY-SA)</option>
+                    <option value="daggerheart">Daggerheart (Open Gaming)</option>
+                    <option value="system-agnostic">System Agnostic</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="pkg-publisher">Publisher Organization</label>
+                  <input type="text" id="pkg-publisher" class="arcane-input" placeholder="Grimoire Press Guild" value="Grimoire Press Guild" />
+                </div>
+                <div class="form-group">
+                  <label for="pkg-license">Open Licensing Schema</label>
+                  <select id="pkg-license" class="arcane-select">
+                    <option value="paizo_orc" selected>Paizo ORC (Open RPG Creative License)</option>
+                    <option value="creative_commons_by_4">Creative Commons CC-BY-4.0</option>
+                    <option value="creative_commons_zero">Creative Commons CC0 (Public Domain)</option>
+                    <option value="ogl_1_0a">OGL 1.0a (Open Game License)</option>
+                    <option value="custom_proprietary">Custom Proprietary Commercial</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="pkg-attribution">License Attribution Notice</label>
+                <textarea id="pkg-attribution" class="arcane-textarea" rows="3" placeholder="Mandatory attribution statement...">This work includes material taken from the System Reference Document 5.1 by Wizards of the Coast LLC and Pathfinder 2e under the Paizo ORC License. Copyright 2026 Grimoire Press Guild.</textarea>
+              </div>
+
+              <div id="schema-validation-banner" class="wax-seal-banner seal-valid">
+                <div class="wax-stamp">⚜</div>
+                <div class="seal-content">
+                  <span class="seal-title">Schema Compliant</span>
+                  <span class="seal-desc">Paizo ORC License attribution requirements verified.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Asset Management -->
+            <div class="arcane-card card-assets">
+              <div class="card-corner tl"></div><div class="card-corner tr"></div>
+              <div class="card-corner bl"></div><div class="card-corner br"></div>
+              
+              <div class="card-header-flex">
+                <h3 class="card-title">Tome Assets & BLAKE3 Digest</h3>
+                <div class="asset-actions">
+                  <button id="btn-add-sample-asset" class="btn-sm btn-arcane-ghost">+ Ingest Asset</button>
+                  <button id="btn-recompute-hashes" class="btn-sm btn-gilded-primary">Re-Hash All</button>
+                </div>
+              </div>
+
+              <div class="arcane-dropzone" id="asset-dropzone">
+                <div class="dropzone-inner">
+                  <div class="dropzone-sigil">🔮</div>
+                  <p class="dropzone-text">Drop rulebook PDFs, Markdown chapters, or JSON compendiums here</p>
+                  <span class="dropzone-sub">Deterministic BLAKE3 cryptographic digest computed instantly</span>
+                </div>
+              </div>
+
+              <div class="asset-table-wrapper">
+                <table class="parchment-table" id="asset-table">
+                  <thead>
+                    <tr>
+                      <th>Asset Path</th>
+                      <th>MIME Type</th>
+                      <th>Size</th>
+                      <th>BLAKE3 Digest</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="asset-tbody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="hash-summary-box">
+                <div class="hash-summary-header">
+                  <span class="rune-icon">✦</span>
+                  <span class="hash-summary-label">Deterministic Root Package Hash</span>
+                </div>
+                <div class="hash-summary-value" id="root-package-hash">Computing...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Cryptographic Signing -->
+        <section id="view-signing" class="tab-view">
+          <div class="view-grid">
+            <div class="arcane-card">
+              <div class="card-corner tl"></div><div class="card-corner tr"></div>
+              <div class="card-corner bl"></div><div class="card-corner br"></div>
+              
+              <h3 class="card-title">Ed25519 Publisher Signing Seal</h3>
+              <p class="card-hint">Cryptographically seal distribution packages using local hardware security keys or developer test keys.</p>
+
+              <div class="form-group">
+                <label for="signing-key-input">Publisher Private Key (32-byte hex seed)</label>
+                <div class="input-with-action">
+                  <input type="password" id="signing-key-input" class="arcane-input code-font" value="4242424242424242424242424242424242424242424242424242424242424242" />
+                  <button id="btn-generate-key" class="btn-arcane-ghost">Forge New Key</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Publisher Public Key (Verifying Key)</label>
+                <div class="code-display" id="pubkey-display">Loading...</div>
+              </div>
+
+              <div class="signing-action-panel">
+                <button id="btn-sign-manifest" class="btn-gilded-primary btn-large">
+                  <span class="btn-icon">🖋️</span> Sign & Build Bundle (.kryptopkg)
+                </button>
+              </div>
+
+              <div id="signing-status-box" class="wax-seal-banner seal-info" style="display: none;">
+                <div class="wax-stamp">📜</div>
+                <div class="seal-content">
+                  <span class="seal-title">Package Cryptographically Sealed</span>
+                  <span class="seal-desc" id="signing-status-text">Ready to sign package.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="arcane-card">
+              <div class="card-corner tl"></div><div class="card-corner tr"></div>
+              <div class="card-corner bl"></div><div class="card-corner br"></div>
+              
+              <h3 class="card-title">Sealed Package Manifest Output</h3>
+              <div class="code-preview-wrap">
+                <pre class="json-preview" id="bundle-preview-json">{
+  "message": "Click 'Sign & Build Bundle' to generate cryptographic envelope."
+}</pre>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Crowdfunding Fulfillment Bridge -->
+        <section id="view-crowdfunding" class="tab-view">
+          <div class="view-grid">
+            <div class="arcane-card">
+              <div class="card-corner tl"></div><div class="card-corner tr"></div>
+              <div class="card-corner bl"></div><div class="card-corner br"></div>
+              
+              <h3 class="card-title">Backer Ingestion (Kickstarter & BackerKit)</h3>
+              <p class="card-hint">Import backer survey export CSVs and automatically map campaign pledge tiers to digital entitlements.</p>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="crowdfund-platform">Platform Format</label>
+                  <select id="crowdfund-platform" class="arcane-select">
+                    <option value="kickstarter" selected>Kickstarter Backer Survey Export</option>
+                    <option value="backerkit">BackerKit Pledge Manager Export</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="crowdfund-publisher-name">Publisher Name</label>
+                  <input type="text" id="crowdfund-publisher-name" class="arcane-input" value="Grimoire Press Guild" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <div class="card-header-flex">
+                  <label for="crowdfund-csv-input">Backer Survey CSV Data</label>
+                  <button id="btn-sample-csv" class="btn-sm btn-arcane-ghost">Load Sample Backers</button>
+                </div>
+                <textarea id="crowdfund-csv-input" class="arcane-textarea code-font" rows="7" placeholder="Paste backer survey CSV export..."></textarea>
+              </div>
+
+              <h4 class="subheading">Tier Entitlement Mapping</h4>
+              <div class="tier-mapping-table-wrap">
+                <table class="parchment-table" id="tier-table">
+                  <thead>
+                    <tr>
+                      <th>Backer Tier Pattern</th>
+                      <th>Package ID to Grant</th>
+                      <th>System</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tier-tbody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="form-actions mt-3">
+                <button id="btn-process-fulfillment" class="btn-gilded-primary btn-large">
+                  <span class="btn-icon">⚡</span> Fulfill Backers & Generate Claim Vouchers
+                </button>
+              </div>
+            </div>
+
+            <div class="arcane-card">
+              <div class="card-corner tl"></div><div class="card-corner tr"></div>
+              <div class="card-corner bl"></div><div class="card-corner br"></div>
+              
+              <h3 class="card-title">Fulfillment Output & Vouchers</h3>
+              <div class="fulfillment-stats-grid" id="fulfillment-stats">
+                <div class="stat-relic-card">
+                  <span class="stat-val" id="stat-total-backers">0</span>
+                  <span class="stat-label">Total Backers</span>
+                </div>
+                <div class="stat-relic-card">
+                  <span class="stat-val" id="stat-fulfilled-vouchers">0</span>
+                  <span class="stat-label">Claim Links</span>
+                </div>
+                <div class="stat-relic-card">
+                  <span class="stat-val" id="stat-vc-credentials">0</span>
+                  <span class="stat-label">W3C VCs</span>
+                </div>
+              </div>
+
+              <div class="table-actions-header">
+                <span class="subheading">Generated Claim Vouchers</span>
+                <button id="btn-download-fulfillment-csv" class="btn-sm btn-arcane-ghost">Export Vouchers CSV</button>
+              </div>
+
+              <div class="vouchers-list-wrap">
+                <table class="parchment-table" id="vouchers-table">
+                  <thead>
+                    <tr>
+                      <th>Backer Email</th>
+                      <th>Reward Tier</th>
+                      <th>Claim Voucher URL</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vouchers-tbody">
+                    <tr><td colspan="4" class="text-center">No backers processed yet. Click 'Fulfill Backers' above.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. POD & NFC Vouchers -->
+        <section id="view-vouchers" class="tab-view">
+          <div class="view-grid">
+            <div class="arcane-card">
+              <div class="card-corner tl"></div><div class="card-corner tr"></div>
+              <div class="card-corner bl"></div><div class="card-corner br"></div>
+              
+              <h3 class="card-title">Physical Hardcover Book Run</h3>
+              <p class="card-hint">Mint scratch-off activation codes and NTAG213/215 NDEF tag payloads for physical hardcover rulebooks.</p>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="pod-package-id">Package ID</label>
+                  <input type="text" id="pod-package-id" class="arcane-input" value="pkg-eldritch-vault-5e" />
+                </div>
+                <div class="form-group">
+                  <label for="pod-format">Voucher Format</label>
+                  <select id="pod-format" class="arcane-select">
+                    <option value="scratch_code" selected>Scratch-Off Code (KRYP-XXXX-YYYY)</option>
+                    <option value="nfc_ntag_ndef">Embedded NTAG213/215 NFC Tag</option>
+                    <option value="qr_sticker">Physical Bookplate QR Card</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="pod-quantity">Print Run Quantity</label>
+                  <input type="number" id="pod-quantity" class="arcane-input" min="1" max="10000" value="5" />
+                </div>
+                <div class="form-group">
+                  <label for="pod-max-uses">Max Redemptions per Voucher</label>
+                  <input type="number" id="pod-max-uses" class="arcane-input" min="1" max="10" value="1" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="pod-duration">Validity Duration (Days, optional)</label>
+                <input type="number" id="pod-duration" class="arcane-input" placeholder="e.g. 730 (2 years)" value="730" />
+              </div>
+
+              <div class="form-actions mt-3">
+                <button id="btn-generate-pod-batch" class="btn-gilded-primary btn-large">
+                  <span class="btn-icon">🖨️</span> Mint Physical Voucher Batch
+                </button>
+              </div>
+            </div>
+
+            <div class="arcane-card">
+              <div class="card-corner tl"></div><div class="card-corner tr"></div>
+              <div class="card-corner bl"></div><div class="card-corner br"></div>
+              
+              <h3 class="card-title">Physical Vouchers & NDEF NFC Payloads</h3>
+              <div class="pod-preview-list" id="pod-preview-list">
+                <p class="placeholder-text">Mint a batch to preview gold foil scratch-off cards and NTAG213/215 NDEF payloads.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Enterprise Audit Chronicle Drawer -->
+    <div id="audit-drawer" class="audit-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title-wrap">
+          <span class="drawer-sigil">📜</span>
+          <h3 class="drawer-title">Arcane Audit Chronicle</h3>
+        </div>
+        <button id="btn-close-chronicle" class="btn-icon-close">✕</button>
+      </div>
+      <div class="drawer-body">
+        <div class="drawer-meta-info">
+          <span>Enterprise Cryptographic Audit Trail (Zero PII)</span>
+          <button id="btn-clear-chronicle" class="btn-sm btn-arcane-ghost">Clear Log</button>
+        </div>
+        <div class="audit-log-list" id="audit-log-list">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+    <div id="drawer-backdrop" class="drawer-backdrop"></div>
+
+    <!-- Arcane Modal for Adding Assets -->
+    <div id="arcane-modal" class="arcane-modal-backdrop" style="display: none;">
+      <div class="arcane-modal-card">
+        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+        <div class="card-corner bl"></div><div class="card-corner br"></div>
+        <h3 class="modal-title">Ingest Rulebook Asset</h3>
+        <p class="modal-desc">Enter the relative path and media type for the rulebook asset.</p>
+        <div class="form-group">
+          <label for="modal-asset-path">Asset Path</label>
+          <input type="text" id="modal-asset-path" class="arcane-input" placeholder="e.g. spells/arcane_grimoire.md" />
+        </div>
+        <div class="form-group">
+          <label for="modal-asset-mime">Media Type</label>
+          <select id="modal-asset-mime" class="arcane-select">
+            <option value="application/pdf">PDF Rulebook (application/pdf)</option>
+            <option value="text/markdown" selected>Markdown Chapters (text/markdown)</option>
+            <option value="application/json">Compendium Data (application/json)</option>
+            <option value="image/webp">Battlemap / Token (image/webp)</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-modal-cancel" class="btn-arcane-ghost">Cancel</button>
+          <button id="btn-modal-confirm" class="btn-gilded-primary">Add to Manifest</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <script src="dist/app.js"></script>
+</body>
+</html>

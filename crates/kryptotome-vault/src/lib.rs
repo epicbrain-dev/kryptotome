@@ -21,6 +21,10 @@ pub use store::{
     EncryptedVaultBackup, EncryptedVaultFile, VaultBackupPayload, VaultStore,
     BACKUP_FILE_EXTENSION, BACKUP_FORMAT_IDENTIFIER,
 };
+pub use kryptotome_core::{
+    CollectedClientData, PasskeyAssertion, PasskeyBinding, PasskeyHardwareManager,
+    PasskeyVerificationResult, WEBAUTHN_FLAG_USER_PRESENT, WEBAUTHN_FLAG_USER_VERIFIED,
+};
 
 #[cfg(test)]
 mod tests {

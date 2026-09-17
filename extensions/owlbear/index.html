@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kryptotome Vault - Owlbear Rodeo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #090d16;
+      --bg-surface: rgba(18, 24, 38, 0.85);
+      --bg-card: rgba(30, 41, 59, 0.65);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(99, 102, 241, 0.4);
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      padding: 16px;
+      font-size: 13px;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    }
+
+    .logo-badge svg {
+      width: 18px;
+      height: 18px;
+      fill: #ffffff;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .vault-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 4px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-emerald);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald);
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .asset-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 440px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .asset-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .asset-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    .asset-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+    }
+
+    .asset-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-1px);
+    }
+
+    .asset-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .asset-thumb {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+    }
+
+    .asset-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .asset-name {
+      font-weight: 600;
+      color: #ffffff;
+      font-size: 13px;
+    }
+
+    .asset-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .mount-btn {
+      background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+      color: #ffffff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+      transition: all 0.2s;
+    }
+
+    .mount-btn:hover {
+      opacity: 0.92;
+      transform: scale(1.02);
+    }
+
+    .session-banner {
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <div class="logo-badge">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">Kryptotome Vault</div>
+        <div class="brand-subtitle">Owlbear Rodeo 2.0 Canvas</div>
+      </div>
+    </div>
+    <div class="vault-status" id="vaultStatusBadge">
+      <span class="status-dot"></span>
+      <span id="vaultStatusText">Active Session</span>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="tokens">Tokens</button>
+    <button class="tab-btn" data-tab="maps">Battlemaps</button>
+    <button class="tab-btn" data-tab="spells">Spell Cards</button>
+    <button class="tab-btn" data-tab="sync">Table Sync</button>
+  </nav>
+
+  <main>
+    <!-- Tokens Section -->
+    <section id="tokens-tab" class="tab-content active">
+      <div class="asset-list" id="tokensList">
+        <div class="asset-card">
+          <div class="asset-info">
+            <div class="asset-thumb">
+              <span style="font-size: 20px;">🧙‍♂️</span>
+            </div>
+            <div>
+              <div class="asset-name">Archmage Evoker</div>
+              <div class="asset-meta">HP 84 • AC 15 • Medium</div>
+            </div>
+          </div>
+          <button class="mount-btn" id="mountArchmageBtn">Mount</button>
+        </div>
+
+        <div class="asset-card">
+          <div class="asset-info">
+            <div class="asset-thumb">
+              <span style="font-size: 20px;">🐉</span>
+            </div>
+            <div>
+              <div class="asset-name">Ancient Red Dragon</div>
+              <div class="asset-meta">HP 546 • AC 22 • Gargantuan</div>
+            </div>
+          </div>
+          <button class="mount-btn" id="mountDragonBtn">Mount</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Battlemaps Section -->
+    <section id="maps-tab" class="tab-content">
+      <div class="asset-list" id="mapsList">
+        <div class="asset-card">
+          <div class="asset-info">
+            <div class="asset-thumb">
+              <span style="font-size: 20px;">🗺️</span>
+            </div>
+            <div>
+              <div class="asset-name">Sunken Crypt of the Lich</div>
+              <div class="asset-meta">3840x2160 (4K) • 150 DPI</div>
+            </div>
+          </div>
+          <button class="mount-btn" id="mountCryptBtn">Mount Map</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Spell Cards Section -->
+    <section id="spells-tab" class="tab-content">
+      <div class="asset-list" id="spellsList">
+        <div class="asset-card">
+          <div class="asset-info">
+            <div class="asset-thumb">
+              <span style="font-size: 20px;">🔥</span>
+            </div>
+            <div>
+              <div class="asset-name">Fireball</div>
+              <div class="asset-meta">Level 3 • Evocation • 150ft</div>
+            </div>
+          </div>
+          <button class="mount-btn" id="mountFireballBtn">Mount Card</button>
+        </div>
+
+        <div class="asset-card">
+          <div class="asset-info">
+            <div class="asset-thumb">
+              <span style="font-size: 20px;">✨</span>
+            </div>
+            <div>
+              <div class="asset-name">Magic Missile</div>
+              <div class="asset-meta">Level 1 • Evocation • 120ft</div>
+            </div>
+          </div>
+          <button class="mount-btn" id="mountMissileBtn">Mount Card</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Table Sync Section -->
+    <section id="sync-tab" class="tab-content">
+      <div class="session-banner">
+        <div>
+          <strong>Room Session Channel</strong><br>
+          <span style="font-family: var(--font-mono); color: var(--accent-cyan);">kryptotome:table-sync</span>
+        </div>
+        <span class="vault-status" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99,102,241,0.3);">
+          WebRTC Live
+        </span>
+      </div>
+      <div style="margin-top: 12px; font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+        Connected peers in this room automatically receive verified, zero-knowledge table tokens to inspect mounted spell cards and battlemaps without distributing private rulebook keys.
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="dist/main.js"></script>
+</body>
+</html>

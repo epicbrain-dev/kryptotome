@@ -7,15 +7,17 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc -b packages/sdk packages/bridge packages/vtt-adapter && node packages/sdk/scripts/copy-wasm.mjs",
+    "build": "tsc -b packages/sdk packages/bridge packages/vtt-adapter && node packages/sdk/scripts/copy-wasm.mjs && tsc -p extensions/web-vtt && tsc -p extensions/owlbear && tsc -p apps/pocket-vault && node apps/pocket-vault/scripts/bundle.mjs && tsc -p apps/publisher-studio",
     "build:crates": "source \"$HOME/.cargo/env\" && cargo build --workspace",
     "build:wasm": "source \"$HOME/.cargo/env\" && cargo build --target wasm32-unknown-unknown -p kryptotome-wasm --profile release-wasm && wasm-bindgen target/wasm32-unknown-unknown/release-wasm/kryptotome_wasm.wasm --out-dir packages/sdk/wasm --target web && npx --yes wasm-opt -Oz --enable-bulk-memory --enable-nontrapping-float-to-int packages/sdk/wasm/kryptotome_wasm_bg.wasm -o packages/sdk/wasm/kryptotome_wasm_bg.wasm",
     "test": "node --test",
+    "test:extensions": "node --test extensions/web-vtt/test/web-vtt.test.js extensions/owlbear/test/owlbear-extension.test.js apps/pocket-vault/test/pocket-vault.test.js apps/publisher-studio/test/publisher-studio.test.js",
     "test:crates": "source \"$HOME/.cargo/env\" && cargo test --workspace",
     "bench": "node packages/sdk/scripts/benchmark.mjs",
     "bench:crates": "source \"$HOME/.cargo/env\" && cargo bench --workspace",
     "typecheck": "tsc -b packages/sdk packages/bridge packages/vtt-adapter"
   },
+
   "keywords": [
     "zero-knowledge-proofs",
     "local-first",

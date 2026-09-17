@@ -1,0 +1,86 @@
+/* Injected CSS for Roll20 & Alchemy VTTs */
+
+.kryptotome-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #818cf8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.kryptotome-badge:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: #818cf8;
+  transform: translateY(-1px);
+}
+
+.kryptotome-badge svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.kryptotome-inject-btn {
+  background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+}
+
+.kryptotome-inject-btn:hover {
+  opacity: 0.92;
+  transform: scale(1.02);
+}
+
+/* Roll20 Floating Compendium Panel Injection */
+.kryptotome-roll20-panel {
+  margin: 8px 0;
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+}
+
+.kryptotome-roll20-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 6px;
+}
+
+/* Alchemy Item Card Injection */
+.kryptotome-alchemy-card {
+  border: 1px solid rgba(99, 102, 241, 0.4) !important;
+  background: rgba(30, 41, 59, 0.7) !important;
+  position: relative;
+}
+
+.kryptotome-alchemy-card::before {
+  content: 'ZK VERIFIED';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  color: #10b981;
+  letter-spacing: 0.05em;
+}

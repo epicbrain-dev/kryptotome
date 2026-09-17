@@ -15,12 +15,19 @@ pub use session::{
     PeerSessionClient, PeerSessionRenewalRequest, RevocationEntry, ScopePolicy, SessionAttestation,
     SessionManager, SessionRevocationNotice, DEFAULT_SESSION_DURATION_MINUTES,
 };
+pub use kryptotome_core::{
+    CompendiumItem, CompendiumMerkleTree, MerkleInclusionProof, MerklePathNode,
+    AggregatedPartySessionProof, PartyMemberContribution, PartySessionPool,
+    PasskeyAssertion, PasskeyBinding, PasskeyHardwareManager, PasskeyVerificationResult,
+    SelectiveDisclosureCircuit, SelectiveDisclosureProofBundle,
+};
 
 use chrono::{DateTime, Utc};
 use kryptotome_core::{
     deserialize_proof_compressed, deserialize_vk_compressed,
     error::{KryptotomeError, KryptotomeErrorCode, Result},
-    get_or_init_entitlement_prepared_vk, prepare_verifying_key, string_to_scalar,
+    get_or_init_entitlement_prepared_vk, get_or_init_selective_disclosure_prepared_vk,
+    prepare_verifying_key, string_to_scalar,
     verify_entitlement_proof_prepared, verify_kzg_opening, verify_multi_pairing_identity,
     verify_pairing_equality, verify_plonk_batch_opening,
     zkp::{ChallengeNonce, VerificationKey, ZkProof},
@@ -262,6 +269,40 @@ impl EmbeddedVerifier {
         Ok(is_valid)
     }
 
+    /// Verifies an attribute-level selective disclosure proof bundle (< 10ms)
+    pub fn verify_selective_disclosure(
+        &mut self,
+        bundle: &SelectiveDisclosureProofBundle,
+        expected_nonce: &str,
+    ) -> Result<bool> {
+        if self.is_nonce_consumed(expected_nonce) {
+            return Err(KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp402NonceReplayDetected,
+                message: format!(
+                    "Challenge nonce '{}' has already been consumed (replay detected)",
+                    expected_nonce
+                ),
+            });
+        }
+
+        if bundle.challenge_nonce != expected_nonce {
+            return Err(KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp302PublicInputMismatch,
+                message: "Challenge nonce does not match selective disclosure proof".to_string(),
+            });
+        }
+
+        let pvk = get_or_init_selective_disclosure_prepared_vk();
+        let is_valid = bundle.verify_prepared(pvk)?;
+
+        if is_valid {
+            let expires_at = Utc::now() + chrono::Duration::minutes(5);
+            self.mark_nonce_consumed(expected_nonce, expires_at);
+        }
+
+        Ok(is_valid)
+    }
+
     /// Fast Plonk / KZG polynomial commitment opening verification (< 2ms)
     pub fn verify_plonk_kzg(
         &self,
@@ -394,5 +435,55 @@ mod tests {
         verifier.register_publisher_vk("publisher-1", vk);
         let pvk = verifier.resolve_pvk(Some("publisher-1"));
         assert!(!pvk.vk.gamma_abc_g1.is_empty());
+    }
+
+    #[test]
+    fn test_verifier_selective_disclosure() {
+        use rand::rngs::OsRng;
+        let mut verifier = EmbeddedVerifier::new();
+
+        let (pk, _) = kryptotome_core::get_or_init_selective_disclosure_setup();
+        let secret = [77u8; 32];
+        let challenge_nonce = "challenge-selective-test-99";
+        let item_digest = "sha256:spell-fireball-test";
+        let compendium_root = "sha256:root-test";
+        let publisher_pubkey = "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899";
+        let holder_commitment = "urn:kryptotome:commitment:bls12381:test99";
+
+        let (proof, public_inputs) = kryptotome_core::circuit::prove_selective_disclosure_for_item(
+            pk,
+            &secret,
+            challenge_nonce,
+            item_digest,
+            compendium_root,
+            publisher_pubkey,
+            holder_commitment,
+            &mut OsRng,
+        )
+        .unwrap();
+
+        let bundle = SelectiveDisclosureProofBundle::new(
+            &proof,
+            &public_inputs,
+            challenge_nonce,
+            item_digest,
+            publisher_pubkey,
+            holder_commitment,
+        )
+        .unwrap();
+
+        // Verification passes with expected challenge nonce
+        let is_valid = verifier.verify_selective_disclosure(&bundle, challenge_nonce).unwrap();
+        assert!(is_valid);
+
+        // Replay rejected: second attempt with same nonce fails
+        let replay_err = verifier.verify_selective_disclosure(&bundle, challenge_nonce).unwrap_err();
+        assert!(matches!(
+            replay_err,
+            KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp402NonceReplayDetected,
+                ..
+            }
+        ));
     }
 }

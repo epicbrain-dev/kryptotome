@@ -1,0 +1,28 @@
+[package]
+name = "kryptotome-publisher-studio"
+version = "1.1.0"
+edition = "2021"
+authors = ["Kryptotome Contributors"]
+description = "Indie Publisher Studio GUI Desktop App for rulebook packaging, schema validation, crowdfunding fulfillment, and physical POD vouchers."
+license = "Apache-2.0"
+
+[lib]
+name = "kryptotome_publisher_studio"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+hex = "0.4"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+blake3 = { workspace = true }
+ed25519-dalek = { workspace = true }
+chrono = { workspace = true }
+kryptotome-core = { workspace = true }
+kryptotome-vault = { workspace = true }
+kryptotome-verifier = { workspace = true }
+kryptotome-cli = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

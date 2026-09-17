@@ -1,0 +1,27 @@
+[package]
+name = "kryptotome-pocket-vault"
+version = "1.1.0"
+edition = "2021"
+authors = ["Kryptotome Contributors"]
+description = "Biometric-secured mobile pocket vault with camera QR scanning and local BLE/mDNS table beacons."
+license = "Apache-2.0"
+
+[lib]
+name = "kryptotome_pocket_vault"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+hex = "0.4"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+ed25519-dalek = { workspace = true }
+chrono = { workspace = true }
+kryptotome-core = { workspace = true }
+kryptotome-vault = { workspace = true }
+kryptotome-verifier = { workspace = true }
+
+
+[dev-dependencies]
+tokio = { workspace = true }

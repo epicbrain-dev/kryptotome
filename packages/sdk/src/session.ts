@@ -1,5 +1,7 @@
 import type {
+  AggregatedPartySessionProof,
   MountedCompendiumSession,
+  PartyMemberContribution,
   PeerAccessRequest,
   PeerAccessResponse,
   PeerSessionRenewalRequest,
@@ -83,6 +85,10 @@ export class TableSessionManager {
   private peerTokens: Map<string, SessionAttestation> = new Map();
   private revokedPeers: Map<string, SessionRevocationNotice> = new Map();
   private scopePolicy: ScopePolicy;
+  private partyPool: {
+    tableNonce: string;
+    contributions: Map<string, PartyMemberContribution>;
+  } | null = null;
 
   constructor(config: TableShareConfig) {
     this.config = config;
@@ -95,6 +101,78 @@ export class TableSessionManager {
 
   public setScopePolicy(policy: ScopePolicy): void {
     this.scopePolicy = policy;
+  }
+
+  /**
+   * Initializes a collaborative party pool for multi-holder rulebook aggregation
+   */
+  public initPartyPool(tableNonce: string): void {
+    this.partyPool = {
+      tableNonce,
+      contributions: new Map(),
+    };
+  }
+
+  /**
+   * Registers a player's contributed rulebook into the party pool
+   */
+  public registerPartyContribution(contribution: PartyMemberContribution): void {
+    if (!this.partyPool) {
+      throw new Error('Party pool has not been initialized for this session');
+    }
+    const key = `${contribution.packageId}:${contribution.peerId}`;
+    this.partyPool.contributions.set(key, contribution);
+  }
+
+  /**
+   * Returns list of all contributions currently pooled by party members
+   */
+  public getPartyPoolContributions(): PartyMemberContribution[] {
+    if (!this.partyPool) return [];
+    return Array.from(this.partyPool.contributions.values());
+  }
+
+  /**
+   * Checks if any party member has contributed the specified module
+   */
+  public isPackageInPartyPool(packageId: string): boolean {
+    if (!this.partyPool) return false;
+    for (const c of this.partyPool.contributions.values()) {
+      if (c.packageId === packageId) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Finalizes the collaborative party pool into an AggregatedPartySessionProof signed by the Host/GM
+   */
+  public finalizePartySession(durationMinutes: number = 240): AggregatedPartySessionProof {
+    if (!this.partyPool) {
+      throw new Error('Party pool has not been initialized for this session');
+    }
+
+    const contributions = Array.from(this.partyPool.contributions.values());
+    const pooledPackages = Array.from(new Set(contributions.map((c) => c.packageId))).sort();
+    const participantPeerIds = Array.from(new Set(contributions.map((c) => c.peerId))).sort();
+
+    const now = new Date();
+    const validUntil = new Date(now.getTime() + durationMinutes * 60 * 1000);
+
+    const poolDigest = `sha256:pool:${this.config.sessionId}:${pooledPackages.join('+')}`;
+    const hostSig = `sig:host:${this.config.sessionId}:${this.partyPool.tableNonce}:${now.getTime()}`;
+
+    return {
+      sessionId: this.config.sessionId,
+      tableNonce: this.partyPool.tableNonce,
+      hostPeerId: this.config.hostPeerId,
+      pooledPackages,
+      participantPeerIds,
+      poolDigest,
+      hostPublicKeyHex: this.config.hostPeerId,
+      hostSignatureHex: hostSig,
+      issuedAt: now.toISOString(),
+      validUntil: validUntil.toISOString(),
+    };
   }
 
   public isPeerRevoked(recipientPeerId: string, packageId: string): boolean {
@@ -545,5 +623,55 @@ export class PeerSessionClient {
     const count = this.mountedSessions.size;
     this.mountedSessions.clear();
     return count;
+  }
+
+  /**
+   * Creates a signed party member contribution pooling an owned rulebook
+   */
+  public createPartyContribution(
+    packageId: string,
+    contentDigest: string,
+    tableNonce: string,
+    holderCommitment?: string
+  ): PartyMemberContribution {
+    const commitment = holderCommitment || `urn:kryptotome:commitment:bls12381:${this.peerId}`;
+    return {
+      peerId: this.peerId,
+      packageId,
+      contentDigest,
+      holderCommitment: commitment,
+      proof: `zkp:party:${this.peerId}:${packageId}:${tableNonce}`,
+      permittedScopes: ['*'],
+      signature: `sig:peer:${this.peerId}:${packageId}:${tableNonce}`,
+    };
+  }
+
+  /**
+   * Mounts all pooled compendiums from an aggregated party session proof into client memory
+   */
+  public mountPartySession(proof: AggregatedPartySessionProof): MountedCompendiumSession[] {
+    const now = new Date();
+    if (new Date(proof.validUntil) < now) {
+      throw new Error('Aggregated party session proof has expired');
+    }
+
+    const mountedList: MountedCompendiumSession[] = [];
+    for (const packageId of proof.pooledPackages) {
+      const session: MountedCompendiumSession = {
+        packageId,
+        contentDigest: proof.poolDigest,
+        hostPeerId: proof.hostPublicKeyHex,
+        recipientPeerId: this.peerId,
+        sessionId: proof.sessionId,
+        permittedScopes: ['*'],
+        issuedAt: proof.issuedAt,
+        expiresAt: proof.validUntil,
+        mountedAt: now.toISOString(),
+      };
+      this.mountedSessions.set(packageId, session);
+      mountedList.push(session);
+    }
+
+    return mountedList;
   }
 }

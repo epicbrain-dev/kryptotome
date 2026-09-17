@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kryptotome Web VTT Vault</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: rgba(18, 24, 38, 0.9);
+      --card: rgba(30, 41, 59, 0.6);
+      --border: rgba(255, 255, 255, 0.08);
+      --primary: #6366f1;
+      --accent-cyan: #06b6d4;
+      --emerald: #10b981;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 340px;
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 14px;
+      font-size: 12px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: var(--emerald);
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 6px var(--emerald);
+    }
+
+    .search-input {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: #fff;
+      font-size: 12px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+
+    .package-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+
+    .pkg-title {
+      font-weight: 600;
+      color: #fff;
+      font-size: 12px;
+    }
+
+    .pkg-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .footer {
+      margin-top: 12px;
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: center;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">
+      <span>🛡️</span>
+      <span>Kryptotome Vault</span>
+    </div>
+    <div class="status-badge">
+      <span class="status-dot"></span>
+      <span>Local Vault Online</span>
+    </div>
+  </div>
+
+  <input type="text" id="searchInput" class="search-input" placeholder="Search compendium spells, feats...">
+
+  <div id="packagesContainer">
+    <div class="package-card">
+      <div class="pkg-title">Open RPG Core Spells</div>
+      <div class="pkg-meta">
+        <span>142 Spells & Cantrips</span>
+        <span style="color: #38bdf8;">Paizo ORC</span>
+      </div>
+    </div>
+
+    <div class="package-card">
+      <div class="pkg-title">Open RPG Core Feats</div>
+      <div class="pkg-meta">
+        <span>78 Feats & Archetypes</span>
+        <span style="color: #38bdf8;">Paizo ORC</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Zero-Knowledge Entitlement Proof Active • Roll20 & Alchemy RPG
+  </div>
+
+  <script type="module" src="dist/popup.js"></script>
+</body>
+</html>

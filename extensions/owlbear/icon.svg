@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#31104b"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="50%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="arcaneGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4338ca"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded shield -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bgGrad)" stroke="url(#goldGrad)" stroke-width="3"/>
+
+  <!-- Inner Runed Circle -->
+  <circle cx="64" cy="64" r="48" fill="none" stroke="rgba(217, 119, 6, 0.3)" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <!-- Arcane Shield Facets -->
+  <polygon points="64,18 102,38 102,78 64,110 26,78 26,38" fill="url(#arcaneGrad)" opacity="0.35" stroke="url(#goldGrad)" stroke-width="2"/>
+
+  <!-- Tome / Vault Relic Center -->
+  <path d="M64 32 L90 47 L90 81 L64 100 L38 81 L38 47 Z" fill="#1e1b4b" stroke="url(#goldGrad)" stroke-width="2" filter="url(#glow)"/>
+
+  <!-- Central Rune / Fleur-de-lis / Tome Symbol -->
+  <path d="M64 42 C67 52 74 57 82 57 C74 61 70 68 69 78 C67 68 64 64 64 64 C64 64 61 68 59 78 C58 68 54 61 46 57 C54 57 61 52 64 42 Z" fill="url(#goldGrad)"/>
+
+  <!-- Glowing Gem -->
+  <circle cx="64" cy="64" r="5" fill="#38bdf8" filter="url(#glow)"/>
+  <circle cx="64" cy="64" r="2" fill="#ffffff"/>
+</svg>
