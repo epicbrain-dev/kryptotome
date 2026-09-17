@@ -4,7 +4,7 @@ use aes_gcm::{Aes256Gcm, Nonce as AesNonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use chacha20poly1305::{ChaCha20Poly1305, Nonce as ChaChaNonce};
 use kryptotome_core::error::{KryptotomeError, KryptotomeErrorCode, Result};
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -51,8 +51,7 @@ pub struct KdfParams {
 impl KdfParams {
     /// OWASP / RFC 9106 recommended interactive parameters (64 MiB memory, 3 iterations, 4 parallelism)
     pub fn recommended() -> Self {
-        let mut salt = [0u8; 16];
-        OsRng.fill_bytes(&mut salt);
+        let salt: [u8; 16] = OsRng.gen();
         Self {
             algorithm: "argon2id".to_string(),
             memory_cost_kib: 65536, // 64 MiB
@@ -64,8 +63,7 @@ impl KdfParams {
 
     /// Fast parameters for unit tests and resource-constrained environments (8 MiB, 1 iteration, 1 thread)
     pub fn fast() -> Self {
-        let mut salt = [0u8; 16];
-        OsRng.fill_bytes(&mut salt);
+        let salt: [u8; 16] = OsRng.gen();
         Self {
             algorithm: "argon2id".to_string(),
             memory_cost_kib: 8192, // 8 MiB
@@ -104,8 +102,7 @@ impl KdfParams {
         })?;
 
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-        let mut derived_key = [0u8; 32];
-        OsRng.fill_bytes(&mut derived_key);
+        let mut derived_key: [u8; 32] = OsRng.gen();
         argon2
             .hash_password_into(passphrase.as_bytes(), &salt_bytes, &mut derived_key)
             .map_err(|e| KryptotomeError::Detailed {
