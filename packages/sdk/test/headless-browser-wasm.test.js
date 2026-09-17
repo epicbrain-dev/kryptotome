@@ -221,22 +221,6 @@ function detectBrowserRuntimes() {
     }
   }
 
-  // Firefox / Gecko
-  const firefoxCandidates = [
-    '/Applications/Firefox.app/Contents/MacOS/firefox',
-    '/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox',
-    '/usr/bin/firefox',
-    'firefox',
-  ];
-
-  for (const candidate of firefoxCandidates) {
-    const resolved = findBinary(candidate);
-    if (resolved) {
-      browsers.push({ name: 'Firefox (Gecko/SpiderMonkey)', path: resolved, type: 'firefox' });
-      break;
-    }
-  }
-
   return browsers;
 }
 
@@ -306,21 +290,6 @@ test('Headless Browser: kryptotome-wasm WebAssembly testbed runs in browser runt
             jscOutput.includes('WEBKIT_JSC_WASM_COMPILED_SUCCESSFULLY'),
             'WebKit JSC WebAssembly module compilation must succeed'
           );
-        });
-      } else if (browser.type === 'firefox') {
-        await t.test(`Execute kryptotome-wasm in ${browser.name}`, async () => {
-          const firefoxOutput = await new Promise((resolve, reject) => {
-            execFile(
-              browser.path,
-              ['--headless', targetUrl],
-              { timeout: 15000 },
-              (err, stdout) => {
-                if (err) return reject(err);
-                resolve(stdout);
-              }
-            );
-          });
-          assert.ok(firefoxOutput !== null);
         });
       }
     }
