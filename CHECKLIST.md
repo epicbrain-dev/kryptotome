@@ -162,11 +162,11 @@ This document tracks all modules, features, cryptographic circuits, integrations
 
 ## 11. Security, Privacy, and Unlinkability Audits
 
-- [ ] Mathematical unlinkability verification: Ensure that proofs generated across multiple challenge nonces cannot be clustered or linked to a single identity.
-- [ ] Verify that zero Personally Identifiable Information (PII) is stored in credentials, manifests, or proofs.
-- [ ] Verify immunity against replay attacks via nonce expiration and uniqueness checks.
-- [ ] Conduct automated dependency audit (`cargo audit`, `npm audit`).
-- [ ] Add fuzz testing for untrusted manifest and proof inputs using `cargo fuzz` (libFuzzer).
+- [x] Mathematical unlinkability verification: Ensure that proofs generated across multiple challenge nonces cannot be clustered or linked to a single identity.
+- [x] Verify that zero Personally Identifiable Information (PII) is stored in credentials, manifests, or proofs.
+- [x] Verify immunity against replay attacks via nonce expiration and uniqueness checks.
+- [x] Conduct automated dependency audit (`cargo audit`, `npm audit`).
+- [x] Add fuzz testing for untrusted manifest and proof inputs using `cargo fuzz` (libFuzzer).
 
 ---
 

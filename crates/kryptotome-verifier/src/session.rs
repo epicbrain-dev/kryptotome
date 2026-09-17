@@ -408,6 +408,8 @@ pub struct SessionManager {
     scope_policy: ScopePolicy,
     revoked_peers: HashMap<String, RevocationEntry>,
     active_attestations: HashMap<String, SessionAttestation>,
+    consumed_request_nonces: HashMap<String, DateTime<Utc>>,
+    consumed_renewal_nonces: HashMap<String, DateTime<Utc>>,
 }
 
 impl SessionManager {
@@ -423,6 +425,8 @@ impl SessionManager {
             scope_policy: ScopePolicy::new_default(),
             revoked_peers: HashMap::new(),
             active_attestations: HashMap::new(),
+            consumed_request_nonces: HashMap::new(),
+            consumed_renewal_nonces: HashMap::new(),
         }
     }
 
@@ -435,6 +439,8 @@ impl SessionManager {
             scope_policy: ScopePolicy::new_default(),
             revoked_peers: HashMap::new(),
             active_attestations: HashMap::new(),
+            consumed_request_nonces: HashMap::new(),
+            consumed_renewal_nonces: HashMap::new(),
         }
     }
 
@@ -548,6 +554,20 @@ impl SessionManager {
         }
     }
 
+    /// Checks if an access request nonce was already consumed
+    pub fn is_request_nonce_consumed(&mut self, nonce: &str) -> bool {
+        let now = Utc::now();
+        self.consumed_request_nonces.retain(|_, exp| *exp > now);
+        self.consumed_request_nonces.contains_key(nonce)
+    }
+
+    /// Checks if a session renewal nonce was already consumed
+    pub fn is_renewal_nonce_consumed(&mut self, nonce: &str) -> bool {
+        let now = Utc::now();
+        self.consumed_renewal_nonces.retain(|_, exp| *exp > now);
+        self.consumed_renewal_nonces.contains_key(nonce)
+    }
+
     /// Handshake Step 2 & 3: Host receives peer request, verifies local entitlement and revocation status,
     /// applies dynamic scope policies, and issues signed SessionAttestation with short expiry.
     pub fn handle_peer_access_request<P: EntitlementProvider>(
@@ -557,6 +577,19 @@ impl SessionManager {
         scopes: Option<Vec<String>>,
         valid_duration_minutes: Option<i64>,
     ) -> Result<PeerAccessResponse, KryptotomeError> {
+        // Prevent replay attacks: check if request nonce was already consumed
+        let now = Utc::now();
+        self.consumed_request_nonces.retain(|_, exp| *exp > now);
+        if self.consumed_request_nonces.contains_key(&request.nonce) {
+            return Err(KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp402NonceReplayDetected,
+                message: format!(
+                    "Peer access request nonce '{}' already consumed (replay detected)",
+                    request.nonce
+                ),
+            });
+        }
+
         // Check if peer is revoked
         if self.is_peer_revoked(&request.recipient_peer_id, &request.package_id) {
             return Err(KryptotomeError::Detailed {
@@ -592,6 +625,10 @@ impl SessionManager {
             permitted_scopes,
             duration,
         );
+
+        // Mark nonce as consumed
+        self.consumed_request_nonces
+            .insert(request.nonce.clone(), attestation.expires_at);
 
         let attestation_key = format!("{}:{}", request.recipient_peer_id, request.package_id);
         self.active_attestations
@@ -632,6 +669,19 @@ impl SessionManager {
         request: &PeerSessionRenewalRequest,
         valid_duration_minutes: Option<i64>,
     ) -> Result<PeerAccessResponse, KryptotomeError> {
+        // Prevent replay attacks: check if renewal nonce was already consumed
+        let now = Utc::now();
+        self.consumed_renewal_nonces.retain(|_, exp| *exp > now);
+        if self.consumed_renewal_nonces.contains_key(&request.renewal_nonce) {
+            return Err(KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp402NonceReplayDetected,
+                message: format!(
+                    "Session renewal nonce '{}' already consumed (replay detected)",
+                    request.renewal_nonce
+                ),
+            });
+        }
+
         // Validate session ID
         if request.session_id != self.session_id {
             return Err(KryptotomeError::Detailed {
@@ -679,6 +729,10 @@ impl SessionManager {
             updated_scopes,
             duration,
         );
+
+        // Mark renewal nonce as consumed
+        self.consumed_renewal_nonces
+            .insert(request.renewal_nonce.clone(), renewed_attestation.expires_at);
 
         self.active_attestations
             .insert(attestation_key, renewed_attestation.clone());

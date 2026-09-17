@@ -25,6 +25,7 @@ use kryptotome_core::{
     error::{KryptotomeError, KryptotomeErrorCode, Result},
     zkp::{ChallengeNonce, VerificationKey, ZkProof},
 };
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
 /// High-performance embedded zero-knowledge verification engine
@@ -32,6 +33,7 @@ pub struct EmbeddedVerifier {
     cache: EntitlementCache,
     default_pvk: Option<Groth16PreparedVerifyingKey>,
     publisher_keys: HashMap<String, Groth16PreparedVerifyingKey>,
+    consumed_nonces: HashMap<String, DateTime<Utc>>,
 }
 
 impl Default for EmbeddedVerifier {
@@ -47,6 +49,7 @@ impl EmbeddedVerifier {
             cache: EntitlementCache::new(),
             default_pvk: None,
             publisher_keys: HashMap::new(),
+            consumed_nonces: HashMap::new(),
         }
     }
 
@@ -57,6 +60,7 @@ impl EmbeddedVerifier {
             cache: EntitlementCache::new(),
             default_pvk: Some(pvk),
             publisher_keys: HashMap::new(),
+            consumed_nonces: HashMap::new(),
         }
     }
 
@@ -66,6 +70,7 @@ impl EmbeddedVerifier {
             cache: EntitlementCache::new(),
             default_pvk: Some(pvk),
             publisher_keys: HashMap::new(),
+            consumed_nonces: HashMap::new(),
         }
     }
 
@@ -96,6 +101,20 @@ impl EmbeddedVerifier {
         }
     }
 
+    /// Checks if a nonce was already consumed, cleaning up expired nonces
+    pub fn is_nonce_consumed(&mut self, nonce: &str) -> bool {
+        let now = Utc::now();
+        self.consumed_nonces.retain(|_, expires_at| *expires_at > now);
+        self.consumed_nonces.contains_key(nonce)
+    }
+
+    /// Marks a challenge nonce as consumed with an expiration timestamp
+    pub fn mark_nonce_consumed(&mut self, nonce: &str, expires_at: DateTime<Utc>) {
+        let now = Utc::now();
+        self.consumed_nonces.retain(|_, exp| *exp > now);
+        self.consumed_nonces.insert(nonce.to_string(), expires_at);
+    }
+
     /// Verifies zero-knowledge proof against publisher verification key and challenge nonce in < 10ms
     pub fn verify_zk_proof(
         &mut self,
@@ -111,7 +130,18 @@ impl EmbeddedVerifier {
             });
         }
 
-        // 2. Validate binding of public inputs to challenge
+        // 2. Prevent replay attacks: check if nonce was already consumed
+        if self.is_nonce_consumed(&challenge.nonce) {
+            return Err(KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp402NonceReplayDetected,
+                message: format!(
+                    "Challenge nonce '{}' has already been consumed (replay detected)",
+                    challenge.nonce
+                ),
+            });
+        }
+
+        // 3. Validate binding of public inputs to challenge
         if proof.public_inputs.challenge_nonce != challenge.nonce {
             return Err(KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp302PublicInputMismatch,
@@ -126,10 +156,10 @@ impl EmbeddedVerifier {
             });
         }
 
-        // 3. Deserialize Groth16 proof
+        // 4. Deserialize Groth16 proof
         let groth16_proof = deserialize_proof_compressed(&proof.proof_bytes)?;
 
-        // 4. Map public inputs to scalar fields
+        // 5. Map public inputs to scalar fields
         let nonce_scalar = string_to_scalar(&proof.public_inputs.challenge_nonce);
         let package_scalar = string_to_scalar(&proof.public_inputs.package_id);
         let digest_scalar = string_to_scalar(&proof.public_inputs.content_digest);
@@ -145,7 +175,7 @@ impl EmbeddedVerifier {
             commitment_scalar,
         ];
 
-        // 5. Select prepared verifying key (explicit in vk bytes, by publisher_id, or default)
+        // 6. Select prepared verifying key (explicit in vk bytes, by publisher_id, or default)
         let resolved_pvk_holder: Option<Groth16PreparedVerifyingKey>;
         let pvk_ref: &Groth16PreparedVerifyingKey = if !vk.key_bytes.is_empty() {
             if let Ok(parsed_vk) = deserialize_vk_compressed(&vk.key_bytes) {
@@ -158,10 +188,11 @@ impl EmbeddedVerifier {
             self.resolve_pvk(Some(&vk.publisher_id))
         };
 
-        // 6. Fast Arkworks Groth16 pairing evaluation
+        // 7. Fast Arkworks Groth16 pairing evaluation
         let is_valid = verify_entitlement_proof_prepared(pvk_ref, &public_inputs, &groth16_proof)?;
 
         if is_valid {
+            self.mark_nonce_consumed(&challenge.nonce, challenge.expires_at);
             self.cache.mark_verified(
                 &proof.public_inputs.package_id,
                 &proof.public_inputs.content_digest,
@@ -184,6 +215,17 @@ impl EmbeddedVerifier {
             });
         }
 
+        // Prevent replay attacks: check if nonce was already consumed
+        if self.is_nonce_consumed(&challenge.nonce) {
+            return Err(KryptotomeError::Detailed {
+                code: KryptotomeErrorCode::Kryp402NonceReplayDetected,
+                message: format!(
+                    "Challenge nonce '{}' has already been consumed (replay detected)",
+                    challenge.nonce
+                ),
+            });
+        }
+
         if bundle.challenge_nonce != challenge.nonce {
             return Err(KryptotomeError::Detailed {
                 code: KryptotomeErrorCode::Kryp302PublicInputMismatch,
@@ -202,6 +244,7 @@ impl EmbeddedVerifier {
         let is_valid = bundle.verify_prepared(pvk)?;
 
         if is_valid {
+            self.mark_nonce_consumed(&challenge.nonce, challenge.expires_at);
             self.cache.mark_verified(&bundle.package_id, &bundle.content_digest);
         }
 

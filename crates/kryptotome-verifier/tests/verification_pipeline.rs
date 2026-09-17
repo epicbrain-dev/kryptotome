@@ -324,7 +324,6 @@ fn test_verification_latency_target_sub_10ms() {
         .create_proof_for_challenge(&keyring, &challenge)
         .expect("Prover must succeed");
 
-    let mut verifier = EmbeddedVerifier::new();
     let vk = VerificationKey {
         publisher_id: "paizo".to_string(),
         key_bytes: vec![],
@@ -334,6 +333,7 @@ fn test_verification_latency_target_sub_10ms() {
     let mut total_duration = std::time::Duration::ZERO;
 
     for _ in 0..iterations {
+        let mut verifier = EmbeddedVerifier::new();
         let start = Instant::now();
         let valid = verifier
             .verify_zk_proof(&vk, &challenge, &zk_proof)
